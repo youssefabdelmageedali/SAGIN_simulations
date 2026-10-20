@@ -1,0 +1,42 @@
+===== fig2 (208s) exit=0
+SG-derived degree peaks at avg N=40 (density=10.0/km^2), value=5.973
+SG-derived degree at highest density: 4.713 (21% below peak)
+SG-derived degree monotone non-increasing after peak: True
+Saved fig2_degree_vs_density.png
+
+===== fig3 (1s) exit=0
+TN-only monotone non-increasing: True
+TN-only: 1.000 at 0km -> 0.000 at 10km
+HAPS alone (ideal): ~0.901 (near-flat)
+HAPS alone (sigma_b=3.0deg): ~0.636 -- pointing error costs a standalone HAPS 26pp
+Satellite alone: ~0.470 (genuine last resort)
+Hybrid (ideal): 1.000 at 0km -> 0.932 at 10km
+Hybrid (err):   1.000 at 0km -> 0.784 at 10km
+Hybrid(ideal) >= max(individual tiers) at every distance: True
+Saved fig3_coverage_vs_distance.png
+
+===== fig4 (77s) exit=0
+all-TN latency monotone non-decreasing: True
+all-TN:   106 -> 552 ms  (outage 2.0%)
+all-HAPS: 38 -> 45 ms  (outage 8.3%)
+all-Sat:  212 -> 225 ms  (outage 52.9%)
+balanced: 102 -> 123 ms  (outage 0.1%)
+Trade-off check: no single tier is best on BOTH latency and outage; balanced should be near-best on both.
+Saved fig4_latency_vs_density.png
+
+===== fig5a (13s) exit=0
+Average swarm size across trials: 32.0 drones (Poisson-distributed via PCP, target ~32)
+Solo completion: 100.0% at G=100 -> 0.0% at G=2000
+Coop completion: 100.0% at G=100 -> 73.4% at G=2000
+Solo monotone non-increasing in complexity: True
+Saved fig5a_completion_vs_complexity.png
+
+===== fig5b (1s) exit=0
+Raw -> Satellite        dies at 43.2 min  monotone non-increasing: True
+Edge-AI -> Satellite    dies at 72.8 min  monotone non-increasing: True
+Raw -> HAPS             dies at 62.8 min  monotone non-increasing: True
+Edge-AI -> HAPS         dies at 72.8 min  monotone non-increasing: True
+At 30 min: raw-sat=3.9%  edge-sat=58.8%  raw-haps=45.9%  edge-haps=58.8%
+Note: both edge-AI curves converge to nearly the same endurance regardless of tier -- once the payload is small, tier choice barely matters.
+Saved fig5b_battery_vs_time.png
+
