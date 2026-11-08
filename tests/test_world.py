@@ -132,12 +132,19 @@ def test_haps_coverage_non_increasing_from_nadir():
 
 
 def test_via_drone_coverage_non_decreasing_in_density():
+    # strict: each density step may fall by at most 3 binomial standard errors (no fixed floor);
+    # the failure message reports the actual trend
     from experiments import exp2c_drone_gateway as gw
-    d = np.array([0.0, 5.0])
-    n = 40
-    via = [np.mean([gw.coverage(WORLD, s, lam, n, d)["via_drone"].mean() for s in (1, 2)])
-           for lam in WORLD.p.gw_densities_km2]
-    assert np.all(np.diff(via) >= -_binomial_tol(np.array(via[1:]), 2 * n * len(d))), via
+    d = np.array([0.0, 2.0, 5.0, 10.0])
+    n, seeds = 150, (1, 2, 3)
+    via = np.array([np.mean([gw.coverage(WORLD, s, lam, n, d)["via_drone"].mean() for s in seeds])
+                    for lam in WORLD.p.gw_densities_km2])
+    m = n * len(seeds) * len(d)
+    se = np.sqrt(np.maximum(via * (1 - via), 1.0 / m) / m)
+    steps, step_se = np.diff(via), np.sqrt(se[1:] ** 2 + se[:-1] ** 2)
+    assert np.all(steps >= -3 * step_se), (
+        f"via-drone coverage vs density {list(WORLD.p.gw_densities_km2)}/km^2: {np.round(via, 4).tolist()}, "
+        f"steps {np.round(steps, 4).tolist()} vs 3 SE {np.round(3 * step_se, 4).tolist()}")
 
 
 def test_combined_coverage_ge_each_component():

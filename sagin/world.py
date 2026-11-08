@@ -404,11 +404,43 @@ class SAGINWorld:
         sf = np.where(los, p.a2g_shadow_los_db, p.a2g_shadow_nlos_db) * rng.standard_normal(d2d_m.shape)
         return dbm2w(p.p_sensor_dbm + p.g_sensor_dbi + p.g_drone_dbi - pl + sf) * self.nakagami(rng, d2d_m.shape)
 
-    def gateway_sinr(self, sensor_xy, drones_xy, rng):
+    def drone_channels(self, drones_xy, n_subch, colouring, rng):
+        """Sub-channel (0..n_subch-1) of each gateway drone, and the number of colouring conflicts.
+
+        Random reuse: each drone picks a sub-channel uniformly. Nearest-neighbour colouring: greedy
+        colouring (drones in index order) of the symmetric (n_subch - 1)-nearest-neighbour graph, so
+        adjacent drones never share a sub-channel; a drone with no free colour takes the colour least
+        used by its neighbours and counts as one conflict."""
+        m = len(drones_xy)
+        if not colouring:
+            return rng.integers(0, n_subch, m), 0
+        from scipy.spatial import cKDTree
+        k = min(n_subch, m)
+        nb = cKDTree(drones_xy).query(drones_xy, k=k)[1][:, 1:] if k > 1 else np.zeros((m, 0), dtype=int)
+        adj = [set() for _ in range(m)]
+        for i in range(m):
+            for j in nb[i]:
+                adj[i].add(int(j))
+                adj[int(j)].add(i)
+        col = np.full(m, -1)
+        conflicts = 0
+        for i in range(m):
+            used = [col[j] for j in adj[i] if col[j] >= 0]
+            free = [c for c in range(n_subch) if c not in used]
+            if free:
+                col[i] = free[0]
+            else:
+                col[i] = int(np.argmin(np.bincount(used, minlength=n_subch)))
+                conflicts += 1
+        return col, conflicts
+
+    def gateway_sinr(self, sensor_xy, drones_xy, rng, channels=None, n_subch=1):
         """Uplink SINR from ground sensors to their nearest drone (aerial IoT gateway).
 
         Co-channel interference: one sensor per other drone, uniform in that drone's nearest-drone
-        cell (rejection sampling), active with p_act, all at the sensor's 23 dBm / 0 dBi.
+        cell (rejection sampling), active with p_act, all at the sensor's 23 dBm / 0 dBi. With
+        orthogonal reuse (channels given, n_subch sub-channels of b_a2g_hz / n_subch each) only drones
+        on the serving drone's sub-channel interfere, and the noise is that of one sub-channel.
         Returns (SINR, serving drone index, 3-D distance)."""
         from scipy.spatial import cKDTree
         p = self.p
@@ -430,10 +462,12 @@ class SAGINWorld:
         dj = np.hypot(isens[None, :, 0] - drones_xy[srv][:, None, 0], isens[None, :, 1] - drones_xy[srv][:, None, 1])
         pw = self._a2g_rx_power_w(dj, isens[None, :, :], rng)
         pw[np.arange(len(srv)), srv] = 0.0  # the serving drone's resource belongs to this sensor
+        if channels is not None:
+            pw = pw * (channels[None, :] == channels[srv][:, None])  # only same-sub-channel drones interfere
         active = rng.uniform(size=m) < self.p_act
         interf = (pw * active[None, :]).sum(1)
         d3 = np.sqrt(d_srv ** 2 + (p.h_drone_m - p.h_sensor_m) ** 2)
-        return self.sinr(sig, interf, self.noise_w(p.b_a2g_hz)), srv, d3
+        return self.sinr(sig, interf, self.noise_w(p.b_a2g_hz / n_subch)), srv, d3
 
     # ------------------------------------------------------------- mesh graph
     def mesh_sinr(self, xy, rng, side_m=None, fading=None, channels=None):

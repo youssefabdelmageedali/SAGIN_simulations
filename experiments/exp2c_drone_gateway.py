@@ -18,6 +18,8 @@ STYLE = {"direct_hybrid": (COLORS["hybrid"], "-", "o"), "direct_no_haps": (COLOR
          "via_drone": (COLORS["drone"], "-", "^"), "via_drone_no_haps": (COLORS["drone"], ":", None),
          "combined": (COLORS["ref"], "-", "s"), "combined_no_haps": (COLORS["ref"], "--", None)}
 DENSITY_NAMES = ["low", "nominal", "high"]
+# orthogonal sub-channel reuse on the sensor -> drone band (sensitivity, v1.2): (K, colouring)
+REUSE_CASES = [(1, False), (4, False), (8, False), (16, False), (4, True), (8, True)]
 
 
 def _best_latency(world, feasible, sinr, dist, bandwidth):
@@ -27,8 +29,10 @@ def _best_latency(world, feasible, sinr, dist, bandwidth):
     return np.where(feasible, lat, np.inf).min(-1)
 
 
-def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM):
-    """Coverage per curve at each distance for one seed and drone density, plus latency samples."""
+def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM, n_subch=1, colouring=False):
+    """Coverage per curve at each distance for one seed and drone density, plus latency and
+    sensor -> drone SINR samples. n_subch > 1 splits the sensor -> drone band into orthogonal
+    sub-channels (random choice per drone, or nearest-neighbour colouring)."""
     p = world.p
     rng = make_rng(seed, 6, int(round(density_km2 * 100)))
     sensor = world.ground_sensor()
@@ -36,6 +40,7 @@ def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM):
     bw = world.tier_bandwidths()
     hits = {k: np.zeros(len(dist_km)) for k in CURVES}
     lat_via, lat_direct = [[] for _ in dist_km], [[] for _ in dist_km]
+    hop1_db, conflicts, n_drones = [], 0, 0
     for _ in range(n_real):
         dep = world.deploy(rng)
         az = rng.uniform(0, 2 * np.pi)
@@ -50,7 +55,13 @@ def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM):
         # two-hop path via the nearest drone
         drones = world.swarm_disk(density_km2, p.gw_swarm_radius_km * 1e3, rng)
         if len(drones):
-            g_sinr, srv, g_dist = world.gateway_sinr(xy, drones, rng)
+            ch = None
+            if n_subch > 1:
+                ch, c = world.drone_channels(drones, n_subch, colouring, rng)
+                conflicts += c
+                n_drones += len(drones)
+            g_sinr, srv, g_dist = world.gateway_sinr(xy, drones, rng, channels=ch, n_subch=n_subch)
+            hop1_db.append(10 * np.log10(np.maximum(g_sinr, 1e-30)))
             dxy = drones[srv]
             b_sinr = np.zeros((len(xy), 3))
             b_dist = np.zeros((len(xy), 3))
@@ -78,7 +89,8 @@ def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM):
         # latency: direct = best feasible tier; via drone = sensor->drone hop + best feasible backhaul tier
         ld = _best_latency(sensor, d_ok, d_sinr, d_dist, bw)
         if len(drones):
-            hop1_lat = world.latency_s(p.t_ra_s, p.packet_mbit, world.shannon_rate(p.b_a2g_hz, g_sinr), g_dist)
+            hop1_lat = world.latency_s(p.t_ra_s, p.packet_mbit, world.shannon_rate(p.b_a2g_hz / n_subch, g_sinr),
+                                       g_dist)
             lv = np.where(hop1, hop1_lat + _best_latency(world, b_ok, b_sinr, b_dist, bw), np.inf)
         else:
             lv = np.full(len(xy), np.inf)
@@ -89,6 +101,8 @@ def coverage(world, seed, density_km2, n_real, dist_km=DIST_KM):
                 lat_direct[i].append(ld[i])
     out = {k: v / n_real for k, v in hits.items()}
     out["lat_via"], out["lat_direct"] = lat_via, lat_direct
+    out["hop1_sinr_db"] = np.concatenate(hop1_db) if hop1_db else np.zeros(0)
+    out["colour_conflict_fraction"] = conflicts / n_drones if n_drones else 0.0
     return out
 
 
@@ -105,12 +119,23 @@ def run(world, seeds, outdir, quick=False, log=print):
         res[name] = {k: np.array([r[k] for r in runs]) for k in CURVES}
         res[name]["lat_via"] = [np.concatenate([r["lat_via"][i] for r in runs]) for i in range(len(DIST_KM))]
         res[name]["lat_direct"] = [np.concatenate([r["lat_direct"][i] for r in runs]) for i in range(len(DIST_KM))]
+        res[name]["hop1_sinr_db"] = np.concatenate([r["hop1_sinr_db"] for r in runs])
 
+    # density trend of via-drone coverage: binomial standard error of each pooled mean, no fixed floor
+    n_samp = len(seeds) * n_real * len(DIST_KM)
     via_by_density = np.array([res[n]["via_drone"].mean() for n in DENSITY_NAMES])
+    se = np.sqrt(np.maximum(via_by_density * (1 - via_by_density), 1.0 / n_samp) / n_samp)
+    steps = np.diff(via_by_density)
+    step_se = np.sqrt(se[1:] ** 2 + se[:-1] ** 2)
+    trend = ["decreasing" if d < -3 * e else "increasing" if d > 3 * e else "flat (within 3 SE)"
+             for d, e in zip(steps, step_se)]
     checks = {
         "combined_ge_components": True,  # asserted per realization in coverage()
-        "via_drone_non_decreasing_in_density": bool(np.all(np.diff(via_by_density) >= -0.01)),
+        "via_drone_non_decreasing_in_density": bool(np.all(steps >= -3 * step_se)),
     }
+    log("via-drone coverage vs density (mean over 0-10 km, pooled over seeds): " + ", ".join(
+        f"{lam:g}/km^2 {v:.4f} (SE {e:.4f})" for lam, v, e in zip(p.gw_densities_km2, via_by_density, se))
+        + "; steps: " + ", ".join(f"{d:+.4f} ({t})" for d, t in zip(steps, trend)))
     out = {"distances_km": DIST_KM.tolist(), "densities_km2": list(p.gw_densities_km2), "checks": checks}
     log(f"sensor -> nearest drone (TR 36.777 UMa-AV in the core, RMa-AV outside; {p.b_a2g_hz / 1e6:g} MHz; "
         f"co-channel activity {world.p_act:.3f}); backhaul with the drone radio (30 dBm, 10 dBi)")
@@ -138,6 +163,8 @@ def run(world, seeds, outdir, quick=False, log=print):
         log(f"  latency median (covered samples): via drone {np.median(lv):.1f} ms (p95 {np.percentile(lv, 95):.1f}), "
             f"direct best tier {np.median(ld):.1f} ms (p95 {np.percentile(ld, 95):.1f})" if len(lv) and len(ld) else
             "  latency: no covered samples")
+        log(f"  median sensor -> drone SINR {np.median(r['hop1_sinr_db']):.1f} dB")
+        o["hop1_sinr_db_median"] = float(np.median(r["hop1_sinr_db"]))
         o["drone_gain_over_hybrid"] = {f"at_{d:g}km": float(gain[_at(d)]) for d in REPORT_KM}
         o["no_haps_plus_drones_minus_hybrid"] = {f"at_{d:g}km": float(repl[_at(d)]) for d in REPORT_KM}
         o["latency_ms"] = {"via_drone_median": float(np.median(lv)) if len(lv) else None,
@@ -146,6 +173,9 @@ def run(world, seeds, outdir, quick=False, log=print):
                            "direct_p95": float(np.percentile(ld, 95)) if len(ld) else None,
                            "via_drone_median_by_distance": lv_d}
         out[name] = o
+    out["via_drone_density_trend"] = {"via_mean": via_by_density.tolist(), "se": se.tolist(),
+                                      "steps": steps.tolist(), "trend": trend}
+    out["reuse_sensitivity"] = reuse_sensitivity(world, seeds, 30 if quick else 150, outdir, log, res)
     for k, v in checks.items():
         log(f"check {k}: {v}")
 
@@ -162,4 +192,67 @@ def run(world, seeds, outdir, quick=False, log=print):
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 0.0), ncol=3, frameon=False)
     save(fig, f"{outdir}/fig3c_drone_gateway.png")
+    return out
+
+
+def reuse_sensitivity(world, seeds, n_real, outdir, log, nominal):
+    """Sensor -> drone orthogonal reuse sweep (v1.2). K = 1 is taken from the main (v1.1) run."""
+    p = world.p
+    out = {}
+    via_mean = {}
+    log(f"orthogonal reuse of the {p.b_a2g_hz / 1e6:g} MHz sensor -> drone band (K sub-channels of "
+        f"{p.b_a2g_hz / 1e3:g}/K kHz; {n_real} realizations per seed, K = 1 from the main run):")
+    for k, colouring in REUSE_CASES:
+        tag = f"K{k}_{'colouring' if colouring else 'random'}"
+        out[tag] = {}
+        for name, lam in zip(DENSITY_NAMES, p.gw_densities_km2):
+            if k == 1:
+                r = nominal[name]
+                conflict = 0.0
+            else:
+                runs = [coverage(world, s, lam, n_real, n_subch=k, colouring=colouring) for s in seeds]
+                r = {c: np.array([x[c] for x in runs]) for c in CURVES}
+                r["lat_via"] = [np.concatenate([x["lat_via"][i] for x in runs]) for i in range(len(DIST_KM))]
+                r["hop1_sinr_db"] = np.concatenate([x["hop1_sinr_db"] for x in runs])
+                conflict = float(np.mean([x["colour_conflict_fraction"] for x in runs]))
+            via = r["via_drone"].mean(0)
+            gain = (r["combined"] - r["direct_hybrid"]).mean(0)
+            repl = (r["combined_no_haps"] - r["direct_hybrid"]).mean(0)
+            lv = np.concatenate(r["lat_via"]) * 1e3
+            med = float(np.median(r["hop1_sinr_db"]))
+            via_mean[(tag, name)] = r["via_drone"].mean(1)
+            out[tag][name] = {
+                **{f"via_drone_at_{d:g}km": spread(r["via_drone"][:, _at(d)]) for d in REPORT_KM},
+                "via_drone_mean_over_distance": spread(r["via_drone"].mean(1)),
+                "hop1_sinr_db_median": med,
+                "drone_gain_over_hybrid": {f"at_{d:g}km": float(gain[_at(d)]) for d in REPORT_KM},
+                "no_haps_plus_drones_minus_hybrid": {f"at_{d:g}km": float(repl[_at(d)]) for d in REPORT_KM},
+                "via_latency_ms_median": float(np.median(lv)) if len(lv) else None,
+                "colour_conflict_fraction": conflict,
+            }
+            log(f"  {tag:14s} {name:7s} ({lam:g}/km^2): via drone " + " / ".join(f"{via[_at(d)]:.3f}" for d in REPORT_KM)
+                + f" at {' / '.join(f'{d:g}' for d in REPORT_KM)} km; hop-1 SINR median {med:.1f} dB; "
+                f"on top of hybrid " + " / ".join(f"{gain[_at(d)]:+.3f}" for d in REPORT_KM)
+                + "; no-HAPS+drones - hybrid " + " / ".join(f"{repl[_at(d)]:+.3f}" for d in REPORT_KM)
+                + (f"; via latency median {np.median(lv):.1f} ms" if len(lv) else "; via latency: no covered samples")
+                + (f"; colouring conflicts {100 * conflict:.2f}% of drones" if colouring else ""))
+
+    fig, ax = plt.subplots(figsize=(3.5, 2.6))
+    ks = [k for k, c in REUSE_CASES if not c]
+    for name, col in zip(DENSITY_NAMES, [COLORS["drone"], COLORS["hybrid"], COLORS["ref"]]):
+        lam = p.gw_densities_km2[DENSITY_NAMES.index(name)]
+        ys = np.array([via_mean[(f"K{k}_random", name)] for k in ks]).T
+        band(ax, ks, ys, col, f"{lam:g} drones/km², random reuse", marker="o")
+        kc = [k for k, c in REUSE_CASES if c]
+        yc = np.array([via_mean[(f"K{k}_colouring", name)] for k in kc]).T
+        ax.errorbar(kc, yc.mean(0), yerr=[yc.mean(0) - yc.min(0), yc.max(0) - yc.mean(0)], color=col,
+                    marker="s", linestyle="none", capsize=2, label=f"{lam:g} drones/km², NN colouring")
+    ax.set_xscale("log", base=2)
+    ax.set_xticks(ks)
+    ax.set_xticklabels([str(k) for k in ks])
+    ax.set_xlabel("sensor → drone sub-channels K (1 MHz / K each)")
+    ax.set_ylabel("via-drone coverage, mean 0–10 km")
+    ax.set_ylim(bottom=0)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=1, frameon=False, fontsize=6)
+    save(fig, f"{outdir}/fig3d_drone_gateway_reuse.png")
     return out
