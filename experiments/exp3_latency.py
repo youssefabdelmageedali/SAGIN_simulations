@@ -15,6 +15,7 @@ CAUSES = ["no_coverage", "ra_failure", "over_limit"]
 TIERS = ["tn", "haps", "sat"]
 SWEEP_TH_DB = [-5.0, 0.0, 5.0]
 IOT_LOADS = {"none": 0.0, "low": 0.1, "medium": 0.5, "high": 1.0}  # IoT preambles / resource / opportunity
+HAPS_RA_REDUCED = 16  # congested-HAPS case: fewer HAPS random-access resources
 LABELS = {"all_tn": "all on TN", "all_haps": "all on HAPS", "all_sat": "all on satellite",
           "tn_first": "terrestrial-first (baseline)", "balanced": "load-aware balanced"}
 SHORT = {"all_tn": "TN", "all_haps": "HAPS", "all_sat": "Sat", "tn_first": "TN-1st", "balanced": "Bal."}
@@ -274,9 +275,19 @@ def run(world, seeds, outdir, quick=False, log=print):
     _plot_iot(iot, "ra_fail", 100.0, f"RA failure at N={n_grid[-1]} (% of covered)",
               f"{outdir}/fig4e_ra_failure_vs_iot.png")
 
+    # congested HAPS: same runs with the HAPS random-access capacity reduced
+    iot16 = {name: _collect(SAGINWorld(replace(world.p, iot_ra_load=lam, n_ra_haps=HAPS_RA_REDUCED)), seeds,
+                            n_grid, n_real) for name, lam in IOT_LOADS.items()}
+    for name, lam in IOT_LOADS.items():
+        log(f"HAPS RA resources {HAPS_RA_REDUCED}, IoT load {name} ({lam:g}):")
+        _log_block(log, n_grid, iot16[name], indent="  ")
+        _log_tiers(log, n_grid, iot16[name], indent="    ")
+
     for k, v in checks.items():
         log(f"check {k}: {v}")
     return {"n_grid": n_grid, "nominal_bw": _metrics(n_grid, res), "equal_5mhz_bw": _metrics(n_grid, eq),
             "threshold_sweep": {f"{th:+g}dB": _metrics(n_grid, v) for th, v in sweep.items()},
             "iot_load_sweep": {f"{name}_{lam:g}": _metrics(n_grid, iot[name]) for name, lam in IOT_LOADS.items()},
+            f"haps_ra{HAPS_RA_REDUCED}_iot_load_sweep": {f"{name}_{lam:g}": _metrics(n_grid, iot16[name])
+                                                         for name, lam in IOT_LOADS.items()},
             "checks": checks}

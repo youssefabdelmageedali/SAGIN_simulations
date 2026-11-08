@@ -33,7 +33,15 @@ class Params:
     # --- transmit powers ----------------------------------------------------
     p_drone_access_dbm: float = 30.0  # UAV value, Lou et al. Table I
     p_drone_mesh_dbm: float = 10.0
-    p_iot_dbm: float = 20.0
+    p_iot_dbm: float = 20.0  # max power of the co-channel IoT interferers (power-controlled below it)
+    # TN uplink open-loop fractional power control P = min(P_max, P0 + alpha * PL), PL = coupling loss
+    # to the own serving BS (propagation loss minus both antenna gains). P0 = -90 dBm, alpha = 1:
+    # TR 38.802 v14.2.0 Table 9.1.2-1 (mMTC grant-free UL calibration baseline, 1 RB per user)
+    ul_p0_dbm: float = -90.0
+    ul_alpha: float = 1.0
+    # whether the access terminal itself uses TN power control (drones: no, fixed UAV power;
+    # ground sensors: yes, see ground_sensor())
+    terminal_tn_power_control: bool = False
     # --- antenna gains ------------------------------------------------------
     g_drone_dbi: float = 10.0  # UAV value, Lou et al. Table I (also used on mesh links)
     g_tn_dbi: float = 15.0
@@ -119,7 +127,7 @@ class Params:
 # Params fields that are not literature-matched, with a one-line reason.
 PLACEHOLDERS = {
     "h_bs_m": "typical macro mast height, not tied to a reference",
-    "p_iot_dbm": "co-channel IoT uplink interferer power",
+    "p_iot_dbm": "co-channel IoT uplink interferer maximum power",
     "shadow_std_db": "shadowed-Rician approximation for HAPS/sat",
     "haps_beamwidth_deg": "HAPS spot-beam 3 dB width",
     "sidelobe_db": "sidelobe floor for HAPS and satellite beams",
@@ -314,7 +322,7 @@ class SAGINWorld:
         antenna gain); co-channel HAPS/satellite users are then sensors too. Nothing else changes."""
         p = self.p
         return SAGINWorld(replace(p, h_drone_m=p.h_sensor_m, p_drone_access_dbm=p.p_sensor_dbm,
-                                  g_drone_dbi=p.g_sensor_dbi))
+                                  g_drone_dbi=p.g_sensor_dbi, terminal_tn_power_control=True))
 
     # ------------------------------------------------------------- mesh graph
     def mesh_sinr(self, xy, rng, side_m=None, fading=None, channels=None):
@@ -346,7 +354,7 @@ class SAGINWorld:
 
     # ------------------------------------------------------------ access tiers
     def tn_sinr(self, dep, xy, rng):
-        """Uplink SINR and distance from drones at xy to their serving TN BS."""
+        """Uplink SINR and distance from terminals at xy to their serving TN BS."""
         p = self.p
         n = len(xy)
         if len(dep.bs_xy) == 0:
@@ -354,14 +362,26 @@ class SAGINWorld:
         d = np.sqrt(((xy[:, None, :] - dep.bs_xy[None]) ** 2).sum(-1) + (p.h_drone_m - p.h_bs_m) ** 2)
         srv = d.argmin(1)
         d_srv = d[np.arange(n), srv]
-        sig = dbm2w(p.p_drone_access_dbm + p.g_drone_dbi + p.g_tn_dbi - self.pl_tn_db(d_srv)) * self.nakagami(rng, n)
-        # one co-channel IoT uplink user per other cell, received at the serving BS
+        pl_srv = self.pl_tn_db(d_srv)
+        p_tx = p.p_drone_access_dbm
+        if p.terminal_tn_power_control:
+            p_tx = self.ul_power_dbm(p.p_drone_access_dbm, pl_srv - p.g_drone_dbi - p.g_tn_dbi)
+        sig = dbm2w(p_tx + p.g_drone_dbi + p.g_tn_dbi - pl_srv) * self.nakagami(rng, n)
+        # one co-channel IoT uplink user per other cell, power-controlled towards its own BS,
+        # received at the serving BS
         d_ib = np.sqrt(((dep.iot_xy[:, None, :] - dep.bs_xy[None]) ** 2).sum(-1) + (p.h_bs_m - p.h_iot_m) ** 2)
-        pw = dbm2w(p.p_iot_dbm + p.g_iot_dbi + p.g_tn_dbi - self.pl_tn_db(d_ib))  # (interferer, BS)
+        pl_ib = self.pl_tn_db(d_ib)  # (interferer, BS)
+        p_iot = self.ul_power_dbm(p.p_iot_dbm, np.diag(pl_ib) - p.g_iot_dbi - p.g_tn_dbi)
+        pw = dbm2w(p_iot[:, None] + p.g_iot_dbi + p.g_tn_dbi - pl_ib)
         pw_srv = pw[:, srv].T.copy()  # (drone, interferer)
         pw_srv[np.arange(n), srv] = 0.0  # the serving cell schedules the drone, not its own IoT user
         interf = (pw_srv * self.nakagami(rng, pw_srv.shape)).sum(1)
         return self.sinr(sig, interf, self.noise_w(p.b_tn_hz)), d_srv
+
+    def ul_power_dbm(self, p_max_dbm, coupling_loss_db):
+        """Open-loop fractional uplink power control: min(P_max, P0 + alpha * PL)."""
+        p = self.p
+        return np.minimum(p_max_dbm, p.ul_p0_dbm + p.ul_alpha * np.asarray(coupling_loss_db, dtype=float))
 
     def haps_sinr(self, dep, xy, sigma_b_deg, rng):
         """Uplink SINR and distance to the nearest HAPS, with Gaussian beam-pointing error."""
