@@ -123,6 +123,13 @@ class Params:
     packet_mbit: float = 0.5
     report_mbit: float = 0.02
     capture_interval_s: float = 10.0
+    # --- drone as aerial IoT gateway (exp2c) --------------------------------
+    f_a2g_hz: float = 2e9  # sensor -> drone carrier (same band as TN)
+    b_a2g_hz: float = 1e6  # sensor -> drone channel
+    a2g_shadow_los_db: float = 4.0
+    a2g_shadow_nlos_db: float = 6.0
+    gw_swarm_radius_km: float = 12.0  # gateway swarm: Thomas process over this disk around the hub
+    gw_densities_km2: tuple = (2.0, 10.0, 50.0)  # low / nominal / high drone density
     # --- ground IoT sensor terminal (exp2b) ---------------------------------
     h_sensor_m: float = 0.0
     p_sensor_dbm: float = 23.0  # UE power class 3, TR 36.763 Table 6.1-1; TR 38.821 Table 6.1.1.1-3 handheld
@@ -169,6 +176,10 @@ PLACEHOLDERS = {
     "packet_mbit": "uplink packet size (exp3)",
     "report_mbit": "edge-AI report size",
     "capture_interval_s": "capture cycle length",
+    "a2g_shadow_los_db": "A2G LoS shadowing std (TR 36.777 Table B-3 refers to TR 38.901; not verified here)",
+    "a2g_shadow_nlos_db": "A2G NLoS shadowing std (TR 36.777 Table B-3 refers to TR 38.901; not verified here)",
+    "gw_swarm_radius_km": "extent of the gateway swarm (covers the 0-10 km curves plus 2 km)",
+    "gw_densities_km2": "gateway swarm densities low / nominal / high",
     "h_sensor_m": "ground sensor height (given); no clutter or building-penetration loss is modelled",
 }
 
@@ -334,6 +345,95 @@ class SAGINWorld:
         p = self.p
         return SAGINWorld(replace(p, h_drone_m=p.h_sensor_m, p_drone_access_dbm=p.p_sensor_dbm,
                                   g_drone_dbi=p.g_sensor_dbi, terminal_tn_power_control=True))
+
+    # ----------------------------------------------- drone as aerial IoT gateway (exp2c)
+    def swarm_disk(self, density_km2, radius_m, rng):
+        """Thomas cluster process (PPP parents, Gaussian offspring) over a disk around the hub."""
+        p = self.p
+        n_par = rng.poisson(density_km2 / p.pcp_mean_offspring * np.pi * (radius_m / 1e3) ** 2)
+        parents = self._uniform_disk(n_par, radius_m, rng)
+        counts = rng.poisson(p.pcp_mean_offspring, n_par)
+        centres = np.repeat(parents, counts, axis=0)
+        return centres + p.pcp_sigma_m * rng.standard_normal(centres.shape)
+
+    def a2g_los_prob(self, d2d_m, urban):
+        """LoS probability between a ground node and a drone at h_drone_m, 3GPP TR 36.777 v15.0.0
+        Table B-1: P = 1 for d2D <= d1, else d1/d2D + exp(-d2D/p1)(1 - d1/d2D), with
+        UMa-AV (22.5 < h <= 100 m): d1 = max(460 log10 h - 700, 18), p1 = 4300 log10 h - 3800;
+        RMa-AV (40 < h <= 300 m):  d1 = max(1350.8 log10 h - 1602, 18), p1 = max(15021 log10 h - 16053, 1000)."""
+        h = self.p.h_drone_m
+        lh = np.log10(h)
+        if urban:
+            assert 22.5 < h <= 100, "UMa-AV LoS formula valid for 22.5 < h <= 100 m"
+            d1, p1 = max(460 * lh - 700, 18.0), 4300 * lh - 3800
+        else:
+            assert 40 < h <= 300, "RMa-AV LoS formula valid for 40 < h <= 300 m"
+            d1, p1 = max(1350.8 * lh - 1602, 18.0), max(15021 * lh - 16053, 1000.0)
+        d = np.maximum(np.asarray(d2d_m, dtype=float), 1e-9)
+        return np.where(d <= d1, 1.0, d1 / d + np.exp(-d / p1) * (1 - d1 / d))
+
+    def a2g_pathloss_db(self, d2d_m, los, urban):
+        """Ground node -> drone path loss, 3GPP TR 36.777 v15.0.0 Table B-2 (fc in GHz, d3D in m):
+        UMa-AV LoS 28.0 + 22 log10 d3D + 20 log10 fc; UMa-AV NLoS -17.5 + (46 - 7 log10 h) log10 d3D
+        + 20 log10(40 pi fc / 3); RMa-AV LoS max(23.9 - 1.8 log10 h, 20) log10 d3D + 20 log10(40 pi fc / 3);
+        RMa-AV NLoS max(PL_LoS, -12 + (35 - 5.3 log10 h) log10 d3D + 20 log10(40 pi fc / 3))."""
+        p = self.p
+        h = p.h_drone_m
+        lh = np.log10(h)
+        fc = p.f_a2g_hz / 1e9
+        d3 = np.sqrt(np.asarray(d2d_m, dtype=float) ** 2 + (h - p.h_sensor_m) ** 2)
+        ld = np.log10(d3)
+        fs = 20 * np.log10(40 * np.pi * fc / 3)
+        if urban:
+            pl_los = 28.0 + 22 * ld + 20 * np.log10(fc)
+            pl_nlos = -17.5 + (46 - 7 * lh) * ld + fs
+        else:
+            pl_los = max(23.9 - 1.8 * lh, 20.0) * ld + fs
+            pl_nlos = np.maximum(pl_los, -12 + (35 - 5.3 * lh) * ld + fs)
+        return np.where(los, pl_los, pl_nlos)
+
+    def _a2g_rx_power_w(self, d2d_m, ground_xy, rng):
+        """Received power (W) at a drone from ground sensors: LoS drawn per link, UMa-AV if the
+        sensor is inside the urban core, RMa-AV outside, log-normal shadowing, Nakagami-m fading."""
+        p = self.p
+        urban = np.hypot(ground_xy[..., 0], ground_xy[..., 1]) <= p.tn_core_radius_km * 1e3
+        urban = np.broadcast_to(urban, d2d_m.shape)
+        los_p = np.where(urban, self.a2g_los_prob(d2d_m, True), self.a2g_los_prob(d2d_m, False))
+        los = rng.uniform(size=d2d_m.shape) < los_p
+        pl = np.where(urban, self.a2g_pathloss_db(d2d_m, los, True), self.a2g_pathloss_db(d2d_m, los, False))
+        sf = np.where(los, p.a2g_shadow_los_db, p.a2g_shadow_nlos_db) * rng.standard_normal(d2d_m.shape)
+        return dbm2w(p.p_sensor_dbm + p.g_sensor_dbi + p.g_drone_dbi - pl + sf) * self.nakagami(rng, d2d_m.shape)
+
+    def gateway_sinr(self, sensor_xy, drones_xy, rng):
+        """Uplink SINR from ground sensors to their nearest drone (aerial IoT gateway).
+
+        Co-channel interference: one sensor per other drone, uniform in that drone's nearest-drone
+        cell (rejection sampling), active with p_act, all at the sensor's 23 dBm / 0 dBi.
+        Returns (SINR, serving drone index, 3-D distance)."""
+        from scipy.spatial import cKDTree
+        p = self.p
+        tree = cKDTree(drones_xy)
+        d_srv, srv = tree.query(sensor_xy)
+        m = len(drones_xy)
+        nn = tree.query(drones_xy, k=2)[0][:, 1] if m > 1 else np.full(m, 1e3)
+        radius = np.maximum(nn, 50.0)
+        isens = drones_xy.copy()
+        todo = np.arange(m)
+        for _ in range(6):  # place each drone's co-channel sensor inside that drone's own cell
+            cand = drones_xy[todo] + self._uniform_disk(len(todo), 1.0, rng) * radius[todo, None]
+            ok = tree.query(cand)[1] == todo
+            isens[todo[ok]] = cand[ok]
+            todo = todo[~ok]
+            if not len(todo):
+                break
+        sig = self._a2g_rx_power_w(d_srv, sensor_xy, rng)
+        dj = np.hypot(isens[None, :, 0] - drones_xy[srv][:, None, 0], isens[None, :, 1] - drones_xy[srv][:, None, 1])
+        pw = self._a2g_rx_power_w(dj, isens[None, :, :], rng)
+        pw[np.arange(len(srv)), srv] = 0.0  # the serving drone's resource belongs to this sensor
+        active = rng.uniform(size=m) < self.p_act
+        interf = (pw * active[None, :]).sum(1)
+        d3 = np.sqrt(d_srv ** 2 + (p.h_drone_m - p.h_sensor_m) ** 2)
+        return self.sinr(sig, interf, self.noise_w(p.b_a2g_hz)), srv, d3
 
     # ------------------------------------------------------------- mesh graph
     def mesh_sinr(self, xy, rng, side_m=None, fading=None, channels=None):

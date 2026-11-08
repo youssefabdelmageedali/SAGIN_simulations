@@ -129,3 +129,20 @@ def test_haps_coverage_non_increasing_from_nadir():
         cov = exp2_coverage.coverage(w, 18, CURVE_DIST, n)
         for k in ["haps_ideal", "haps_err"]:
             assert np.all(np.diff(cov[k]) <= _binomial_tol(cov[k][1:], n)), (name, k, cov[k])
+
+
+def test_via_drone_coverage_non_decreasing_in_density():
+    from experiments import exp2c_drone_gateway as gw
+    d = np.array([0.0, 5.0])
+    n = 40
+    via = [np.mean([gw.coverage(WORLD, s, lam, n, d)["via_drone"].mean() for s in (1, 2)])
+           for lam in WORLD.p.gw_densities_km2]
+    assert np.all(np.diff(via) >= -_binomial_tol(np.array(via[1:]), 2 * n * len(d))), via
+
+
+def test_combined_coverage_ge_each_component():
+    from experiments import exp2c_drone_gateway as gw
+    d = np.array([0.0, 2.0, 5.0, 10.0])
+    cov = gw.coverage(WORLD, 19, WORLD.p.gw_densities_km2[0], 40, d)  # also asserts this per realization
+    assert np.all(cov["combined"] >= np.maximum(cov["direct_hybrid"], cov["via_drone"]))
+    assert np.all(cov["combined_no_haps"] >= np.maximum(cov["direct_no_haps"], cov["via_drone_no_haps"]))

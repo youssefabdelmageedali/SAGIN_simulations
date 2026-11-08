@@ -20,6 +20,7 @@ EXPERIMENTS = {
     "exp1": ("experiments.exp1_graph", "fig2"),
     "exp2": ("experiments.exp2_coverage", "fig3"),
     "exp2b": ("experiments.exp2b_iot_coverage", "fig3panelb"),
+    "exp2c": ("experiments.exp2c_drone_gateway", "fig3c"),
     "exp3": ("experiments.exp3_latency", "fig4"),
     "exp4": ("experiments.exp5a_compute", "fig5a"),
     "exp5": ("experiments.exp5b_energy", "fig5b"),
@@ -46,7 +47,7 @@ def _plain(x):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("names", nargs="*", help="exp1, exp2, exp2b, exp3..exp5 or fig2..fig5b (default: all)")
+    ap.add_argument("names", nargs="*", help="exp1, exp2, exp2b, exp2c, exp3..exp5 or fig2..fig5b (default: all)")
     ap.add_argument("--quick", action="store_true")
     ap.add_argument("--out", default="results")
     args = ap.parse_args(argv)

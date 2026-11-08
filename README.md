@@ -4,9 +4,10 @@ Simulation for "A Unified SAGIN Architecture for Autonomous Drone Swarms and Mas
 Central claim under test: the communication graph is **derived from SINR**
 (edge i→j iff SINR_ij > γ_th), not assumed from distance.
 
-## FROZEN MODEL (v1.0)
+## FROZEN MODEL (v1.1)
 
-This is the model version the paper cites (git tag `v1.0`). Every `Params` field, its value and its
+This is the model version the paper cites. v1.0 (commit `59d1aad`) froze Exp 1–5 and 2b; v1.1 adds
+Exp 2c (drones as aerial IoT gateways) with new parameters only — every v1.0 result is bit-identical. Every `Params` field, its value and its
 source. "Task specification" = given in the original simulation brief without a further reference;
 "assumption, no citation" = a modelling value with no citable source; **PLACEHOLDER** = not
 literature-matched, listed in `PLACEHOLDERS` (`sagin/world.py`) and in `metrics.json`. 3GPP values were
@@ -92,6 +93,12 @@ Seeds 1–5; same seeds reproduce `results/metrics.json` bit for bit.
 | `h_sensor_m` | 0 | **PLACEHOLDER** — ground sensor height (given); no clutter or building-penetration loss is modelled |
 | `p_sensor_dbm` | 23 | 3GPP TR 36.763 Table 6.1-1 (UE power class 3); TR 38.821 Table 6.1.1.1-3 |
 | `g_sensor_dbi` | 0 | 3GPP TR 36.763 Table 6.1-1; TR 38.821 Table 6.1.1.1-3 |
+| `f_a2g_hz` | 2e+09 | assumption, no citation (sensor → drone link in the TN band) |
+| `b_a2g_hz` | 1e+06 | task specification (1 MHz sensor → drone channel) |
+| `a2g_shadow_los_db` | 4 | **PLACEHOLDER** — A2G LoS shadowing std (TR 36.777 Table B-3 refers to TR 38.901; not verified here) |
+| `a2g_shadow_nlos_db` | 6 | **PLACEHOLDER** — A2G NLoS shadowing std (TR 36.777 Table B-3 refers to TR 38.901; not verified here) |
+| `gw_swarm_radius_km` | 12 | **PLACEHOLDER** — extent of the gateway swarm (covers the 0–10 km curves plus 2 km) |
+| `gw_densities_km2` | (2.0, 10.0, 50.0) | **PLACEHOLDER** — gateway swarm densities low / nominal / high |
 
 Fixed model structure (not parameters): TN 3GPP-like macro path loss 128.1 + 37.6 log10(d_km); mesh
 40 + 25 log10(d_m); free space for HAPS (20 GHz) and satellite (2 GHz); Nakagami-m on TN/mesh,
@@ -99,6 +106,9 @@ log-normal shadowing on HAPS/satellite; satellite noise k·T·B from G/T; one TN
 deterministic HAPS layout; co-channel TN IoT interferers associated with their nearest BS and
 power-controlled towards it; co-channel activity p_act = 1 − exp(−cochannel_load); slotted random
 access with binary exponential back-off; non-learned decision rules only (no Graph-MARL).
+Exp 2c sensor → drone link: 3GPP TR 36.777 v15.0.0 Annex B air-to-ground model (Table B-1 LoS probability,
+Table B-2 path loss), read from the document's equation objects; UMa-AV for sensors inside the urban core,
+RMa-AV outside; drone at 100 m is the aerial node; Nakagami-m fading; nearest-drone association.
 
 ## Run
 
@@ -122,6 +132,7 @@ bit-identical `metrics.json` (tested).
 | `experiments/exp1_graph.py` | Exp 1 → `fig2_degree_vs_density.png` |
 | `experiments/exp2_coverage.py` | Exp 2 → two-panel `fig3_coverage_vs_distance.png` ((a) drones, (b) sensors, incl. no-HAPS ablation) and two-panel `fig3b_coverage_threshold_sweep.png` |
 | `experiments/exp2b_iot_coverage.py` | Exp 2b → panel (b) of `fig3_coverage_vs_distance.png` and `fig3b_coverage_threshold_sweep.png` (ground IoT sensor) |
+| `experiments/exp2c_drone_gateway.py` | Exp 2c → `fig3c_drone_gateway.png` (drones as aerial IoT gateways, three densities) |
 | `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png`, `fig4c_outage_causes.png`, `fig4d_access_delay_vs_iot.png`, `fig4e_ra_failure_vs_iot.png` |
 | `experiments/exp5a_compute.py` | Exp 4 → `fig5a_completion_vs_complexity.png` |
 | `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png`, `fig5d_bits_per_joule.png` |
@@ -533,6 +544,60 @@ the core the sensor reaches its 23 dBm cap and becomes noise-limited by the spar
 161.6 ms, 3.4% (HAPS and satellite rows change only through Monte Carlo draws shared with TN).
 Exp 5 TN median rate 15.31 → 16.20 Mbit/s.
 
+## Changes in v1.1: Exp 2c, drones as aerial IoT gateways (addition only)
+
+**Model.** Two-hop path: ground sensor (23 dBm, 0 dBi, TR 36.763 Table 6.1-1) → nearest drone of a
+Thomas-cluster swarm over a 12 km disk around the hub (drones at 100 m) → backhaul from that drone to TN,
+HAPS (ideal pointing) or satellite with the existing drone radio (30 dBm, 10 dBi, same models as Exp 2).
+End-to-end success = sensor → drone SINR > 5 dB and best backhaul SINR > 5 dB.
+
+- **Sensor → drone channel**: 3GPP TR 36.777 v15.0.0 Annex B, values verified in the document:
+  Table B-1 LoS probability P = 1 for d2D ≤ d1, else d1/d2D + exp(−d2D/p1)(1 − d1/d2D); UMa-AV
+  (22.5 < h ≤ 100 m) d1 = max(460 log10 h − 700, 18), p1 = 4300 log10 h − 3800; RMa-AV (40 < h ≤ 300 m)
+  d1 = max(1350.8 log10 h − 1602, 18), p1 = max(15021 log10 h − 16053, 1000). Table B-2 path loss: UMa-AV
+  LoS 28.0 + 22 log10 d3D + 20 log10 fc; UMa-AV NLoS −17.5 + (46 − 7 log10 h) log10 d3D + 20 log10(40π fc/3);
+  RMa-AV LoS max(23.9 − 1.8 log10 h, 20) log10 d3D + 20 log10(40π fc/3); RMa-AV NLoS max(PL_LoS,
+  −12 + (35 − 5.3 log10 h) log10 d3D + 20 log10(40π fc/3)). UMa-AV is used for sensors inside the 2 km urban
+  core, RMa-AV outside. **Deviations**: TR 36.777 derives these for a ground BS at 25 m (UMa) / 35 m (RMa)
+  and an aerial UE; here the ground end is a sensor at 0 m. UMa-AV path loss is specified for d2D ≤ 4 km
+  and RMa-AV for ≤ 10 km; longer interferer links use the same formulas. Shadowing std 4 dB LoS / 6 dB
+  NLoS is a PLACEHOLDER (TR 36.777 Table B-3 points to TR 38.901, which was not read). Nakagami-m (m = 2)
+  fading, 1 MHz channel at 2 GHz, 7 dB noise figure at the drone, no power control on this hop.
+- **Interference**: one co-channel sensor per other drone, placed uniformly inside that drone's
+  nearest-drone cell, active with the same p_act (0.393), all on the same 1 MHz resource.
+- **Latency of the via-drone path**: one RA opportunity (6.4 ms, no contention) + 0.5 Mbit at the
+  sensor → drone Shannon rate + propagation, plus the same for the lowest-latency feasible backhaul tier.
+  The direct path uses the lowest-latency feasible direct tier.
+- **Densities** low / nominal / high = 2 / 10 / 50 drones/km² (PLACEHOLDER; 10 = the Exp 4 swarm).
+
+**Results** (seed means, 5 × 500 realizations, coverage at 0 / 2 / 5 / 10 km):
+
+| Curve | 2 drones/km² | 10 drones/km² | 50 drones/km² |
+|---|---|---|---|
+| direct, hybrid (TN+HAPS+sat) | 0.942 / 0.970 / 0.898 / 0.880 | 0.948 / 0.966 / 0.893 / 0.885 | 0.944 / 0.968 / 0.912 / 0.875 |
+| direct, TN + sat (no HAPS) | 0.746 / 0.847 / 0.527 / 0.534 | 0.750 / 0.856 / 0.547 / 0.540 | 0.752 / 0.838 / 0.557 / 0.545 |
+| via drone only | 0.010 / 0.006 / 0.006 / 0.007 | 0.006 / 0.005 / 0.003 / 0.003 | 0.000 / 0.000 / 0.000 / 0.000 |
+| via drone, TN/sat backhaul | 0.010 / 0.006 / 0.006 / 0.007 | 0.006 / 0.005 / 0.003 / 0.003 | 0.000 / 0.000 / 0.000 / 0.000 |
+| direct + via drone (hybrid) | 0.943 / 0.970 / 0.898 / 0.880 | 0.949 / 0.966 / 0.893 / 0.885 | 0.944 / 0.968 / 0.912 / 0.875 |
+| direct + via drone, no HAPS | 0.749 / 0.848 / 0.529 / 0.537 | 0.753 / 0.857 / 0.548 / 0.542 | 0.752 / 0.838 / 0.557 / 0.545 |
+| drones on top of hybrid | +0.001 / +0.000 / +0.000 / +0.000 | +0.000 / +0.000 / +0.000 / +0.000 | +0.000 / +0.000 / +0.000 / +0.000 |
+| no-HAPS + drones − hybrid | −0.193 / −0.122 / −0.369 / −0.343 | −0.195 / −0.110 / −0.345 / −0.343 | −0.192 / −0.130 / −0.355 / −0.330 |
+| median latency, via drone / direct (covered samples) | 223.9 / 39.4 ms | 229.8 / 39.3 ms | 248.9 / 39.5 ms |
+
+(The direct curves differ slightly from Exp 2b because Exp 2c draws its own realizations.) In the figure
+the combined curves lie on top of the direct ones, because drones add nothing.
+
+**Why the via-drone path fails (diagnostic, 150 realizations per density).** The sensor → drone hop is
+not range- or noise-limited: median SNR without interference 40–57 dB, P[SNR > 5 dB] ≥ 0.98; median
+hop distance 860–880 m / 320–370 m / 130–140 m. With interference the median SINR is −18 to −23 dB,
+−14 to −16 dB and −13 to −14 dB: about 360 / 1800 / 8900 co-channel sensors are active on the same
+1 MHz, and a drone at 100 m sees most of them with high LoS probability (the same aerial-interference
+effect TR 36.777 reports for aerial UEs). The backhaul succeeds for 100% of serving drones. A higher
+density brings the drone closer but adds interferers in proportion, so via-drone coverage stays near
+zero and falls slightly with density (0.006 → 0.005 → 0.000 averaged over distance); the
+`via_drone_non_decreasing_in_density` check passes only within its 0.01 tolerance. The latency is
+dominated by sending 0.5 Mbit over 1 MHz at an SINR just above the threshold (≈ 220 ms).
+
 ## Experiment-specific choices
 
 - Exp 1 runs on a torus window (no edge effects) of side clip(√(2000/λ) km, 3, 10), 3 realizations
@@ -546,7 +611,7 @@ Exp 5 TN median rate 15.31 → 16.20 Mbit/s.
 See `results/run_log.txt` and `results/metrics.json`. The summary of the latest run is in
 the section below.
 
-### Latest run (v1.0; seeds 1–5, seed mean)
+### Latest run (v1.1; seeds 1–5, seed mean)
 
 | Metric | Value |
 |---|---|
@@ -561,6 +626,7 @@ the section below.
 | Exp 3 high IoT load (1.0, p_act 0.632): outage, latency at N=50 | TN 5.4%, 261.8 ms; HAPS 2.2%, 108.0 ms; sat 3.0%, 182.0 ms; terrestrial-first 2.6%, 105.8 ms; load-aware (conservative) 2.1%, 105.6 ms; load-aware 2.1%, 101.7 ms |
 | Exp 3, HAPS RA 16, drone-only: latency at N=50 | HAPS 56.4 ms; terrestrial-first 43.0 ms; load-aware (conservative) 52.4 ms; load-aware 43.1 ms |
 | Exp 3, HAPS RA 16, high IoT load: outage (RA failure + over limit), latency at N=50 | TN 5.4% (5.4%), 259.2 ms; HAPS 4.3% (4.3%), 209.5 ms; sat 2.9% (2.5%), 181.1 ms; terrestrial-first 3.4% (3.4%), 161.6 ms; load-aware (conservative) 2.3% (2.3%), 138.1 ms; load-aware 2.8% (2.8%), 137.4 ms |
+| Exp 2c via drone (sensor → drone → TN/HAPS/sat), mean over 0–10 km at 2 / 10 / 50 drones/km² | 0.006 / 0.005 / 0.000; drones add ≤ +0.001 on top of the hybrid; no-HAPS + drones is 0.11–0.37 below the hybrid |
 | Exp 4 coop completion at 1000 / 2000 GFLOP | 98.2% / 91.0% (solo: step at 470 GFLOP) |
 | Exp 5 raw streaming | needs 80 Mbit/s; feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS) |
 | Exp 5 median endurance | raw 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
@@ -574,7 +640,7 @@ the section below.
   Monte Carlo noise at low density (only 15 realizations per density). A 60-realization re-check
   showed the step increasing.
 
-## Claims (v1.0)
+## Claims (v1.1)
 
 | Claim | Verdict | Numbers |
 |---|---|---|
@@ -586,3 +652,4 @@ the section below.
 | (f) edge-AI is needed for data delivery | holds (if the 0.02 Mbit report carries the needed information) | raw feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS); report feasible 100% |
 | (g) edge-AI saves energy | does not hold | endurance edge-AI 68.3 min vs raw 69.4 min |
 | (h) HAPS is needed for coverage of ground IoT sensors | holds at +5 and 0 dB; small margin at −5 dB | +5 dB, hybrid vs TN + sat: 0.950 vs 0.746 at the hub, 0.971 vs 0.853 at 2 km, 0.908 vs 0.540 at 5 km, 0.877 vs 0.538 at 10 km (σ_b = 3°: 0.744 at 10 km). 10 km at 0 dB: 0.996 vs 0.857; −5 dB: 1.000 vs 0.987 |
+| (i) drones as aerial IoT gateways extend sensor coverage or replace the HAPS | does not hold | via-drone coverage 0.000–0.010 at every distance and density; on top of the hybrid +0.000 to +0.001; no-HAPS + drones vs hybrid −0.110 to −0.369 (at 10 km: −0.343 / −0.343 / −0.330 at 2 / 10 / 50 drones/km²). Cause: co-channel LoS interference at the drone (median SINR −13 to −23 dB), not range or backhaul. Via-drone latency 224–249 ms median vs 39 ms direct |

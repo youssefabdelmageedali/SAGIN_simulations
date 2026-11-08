@@ -1,4 +1,4 @@
-===== exp1 (fig2) 59s
+===== exp1 (fig2) 68s
 SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
 SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
 Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
@@ -82,7 +82,42 @@ ground IoT sensors: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
     hybrid_err    full load: 0.743 / 0.771 / 0.838 / 0.802 / 0.773 / 0.739
     no_haps       full load: 0.459 / 0.518 / 0.661 / 0.583 / 0.531 / 0.531
 
-===== exp3 (fig4) 105s
+===== exp2c (fig3c) 310s
+sensor -> nearest drone (TR 36.777 UMa-AV in the core, RMa-AV outside; 1 MHz; co-channel activity 0.393); backhaul with the drone radio (30 dBm, 10 dBi)
+drone density low (2/km^2): coverage at 0 / 2 / 5 / 10 km
+  direct_hybrid     : 0.942 / 0.970 / 0.898 / 0.880   (mean 0.918)
+  direct_no_haps    : 0.746 / 0.847 / 0.527 / 0.534   (mean 0.628)
+  via_drone         : 0.010 / 0.006 / 0.006 / 0.007   (mean 0.006)
+  via_drone_no_haps : 0.010 / 0.006 / 0.006 / 0.007   (mean 0.006)
+  combined          : 0.943 / 0.970 / 0.898 / 0.880   (mean 0.918)
+  combined_no_haps  : 0.749 / 0.848 / 0.529 / 0.537   (mean 0.630)
+  drones on top of hybrid (combined - direct hybrid): +0.001 / +0.000 / +0.000 / +0.000
+  no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.193 / -0.122 / -0.369 / -0.343
+  latency median (covered samples): via drone 223.9 ms (p95 266.3), direct best tier 39.4 ms (p95 166.9)
+drone density nominal (10/km^2): coverage at 0 / 2 / 5 / 10 km
+  direct_hybrid     : 0.948 / 0.966 / 0.893 / 0.885   (mean 0.918)
+  direct_no_haps    : 0.750 / 0.856 / 0.547 / 0.540   (mean 0.634)
+  via_drone         : 0.006 / 0.005 / 0.003 / 0.003   (mean 0.005)
+  via_drone_no_haps : 0.006 / 0.005 / 0.003 / 0.003   (mean 0.005)
+  combined          : 0.949 / 0.966 / 0.893 / 0.885   (mean 0.919)
+  combined_no_haps  : 0.753 / 0.857 / 0.548 / 0.542   (mean 0.635)
+  drones on top of hybrid (combined - direct hybrid): +0.000 / +0.000 / +0.000 / +0.000
+  no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.195 / -0.110 / -0.345 / -0.343
+  latency median (covered samples): via drone 229.8 ms (p95 264.1), direct best tier 39.3 ms (p95 164.3)
+drone density high (50/km^2): coverage at 0 / 2 / 5 / 10 km
+  direct_hybrid     : 0.944 / 0.968 / 0.912 / 0.875   (mean 0.920)
+  direct_no_haps    : 0.752 / 0.838 / 0.557 / 0.545   (mean 0.633)
+  via_drone         : 0.000 / 0.000 / 0.000 / 0.000   (mean 0.000)
+  via_drone_no_haps : 0.000 / 0.000 / 0.000 / 0.000   (mean 0.000)
+  combined          : 0.944 / 0.968 / 0.912 / 0.875   (mean 0.920)
+  combined_no_haps  : 0.752 / 0.838 / 0.557 / 0.545   (mean 0.633)
+  drones on top of hybrid (combined - direct hybrid): +0.000 / +0.000 / +0.000 / +0.000
+  no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.192 / -0.130 / -0.355 / -0.330
+  latency median (covered samples): via drone 248.9 ms (p95 267.0), direct best tier 39.5 ms (p95 167.5)
+check combined_ge_components: True
+check via_drone_non_decreasing_in_density: True
+
+===== exp3 (fig4) 110s
 drone-only random access (no IoT preambles), co-channel activity 0.393, nominal bandwidths and threshold:
   all_tn   : 38.4 -> 93.2 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
   all_haps : 19.1 -> 25.9 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
