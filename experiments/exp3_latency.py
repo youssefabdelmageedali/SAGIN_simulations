@@ -10,19 +10,22 @@ from sagin.world import SAGINWorld
 
 N_GRID = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
 QUICK_N_GRID = [1, 10, 30, 50]
-POLICIES = ["all_tn", "all_haps", "all_sat", "tn_first", "balanced"]
+POLICIES = ["all_tn", "all_haps", "all_sat", "tn_first", "balanced_conservative", "balanced"]
 CAUSES = ["no_coverage", "ra_failure", "over_limit"]
 TIERS = ["tn", "haps", "sat"]
 SWEEP_TH_DB = [-5.0, 0.0, 5.0]
 IOT_LOADS = {"none": 0.0, "low": 0.1, "medium": 0.5, "high": 1.0}  # IoT preambles / resource / opportunity
 HAPS_RA_REDUCED = 16  # congested-HAPS case: fewer HAPS random-access resources
 LABELS = {"all_tn": "all on TN", "all_haps": "all on HAPS", "all_sat": "all on satellite",
-          "tn_first": "terrestrial-first (baseline)", "balanced": "load-aware balanced"}
-SHORT = {"all_tn": "TN", "all_haps": "HAPS", "all_sat": "Sat", "tn_first": "TN-1st", "balanced": "Bal."}
+          "tn_first": "terrestrial-first (baseline)", "balanced_conservative": "load-aware, conservative estimate",
+          "balanced": "load-aware balanced"}
+SHORT = {"all_tn": "TN", "all_haps": "HAPS", "all_sat": "Sat", "tn_first": "TN-1st", "balanced_conservative": "Bal-c",
+         "balanced": "Bal."}
 STYLE = {"all_tn": dict(color=COLORS["tn"], marker="s", linestyle="--"),
          "all_haps": dict(color=COLORS["haps"], marker="d", linestyle="-."),
          "all_sat": dict(color=COLORS["sat"], marker="x", linestyle=":"),
          "tn_first": dict(color=COLORS["hybrid"], marker="s", linestyle="--"),
+         "balanced_conservative": dict(color=COLORS["hybrid"], marker="^", linestyle=":"),
          "balanced": dict(color=COLORS["hybrid"], marker="o", linestyle="-")}
 
 
@@ -46,13 +49,18 @@ def assign(world, policy, sinr, dist, th):
         tier[rest & ~feas[..., 1] & ~feas[..., 2] & feas[..., 0]] = 0  # TN is its only option
         return tier
     # load-aware: drones in index order, each to the feasible tier with the lowest expected latency
-    # given the drones already assigned there and the IoT load; an expected RA failure costs the limit
+    # given the drones already assigned there and the IoT load; an expected RA failure costs the limit.
+    # "balanced" takes the expected access delay from simulated random access with that many
+    # contenders; "balanced_conservative" uses the analytic estimate that assumes all keep contending.
     static = world.latency_s(0.0, p.packet_mbit, world.shannon_rate(world.tier_bandwidths(), sinr), dist)
     n_ra = world.ra_resources()
     counts = np.zeros((r, 3))
     rows = np.arange(r)
     for i in range(n):
-        e_acc, p_fail = world.expected_access(counts + 1, n_ra)
+        if policy == "balanced":
+            e_acc, p_fail = world.expected_access_sim(counts + 1)
+        else:
+            e_acc, p_fail = world.expected_access(counts + 1, n_ra)
         cost = np.where(feas[:, i, :], (1 - p_fail) * (e_acc + static[:, i, :]) + p_fail * p.latency_limit_s,
                         np.inf)
         best = cost.argmin(1)
@@ -244,7 +252,8 @@ def run(world, seeds, outdir, quick=False, log=print):
     res = _collect(world, seeds, n_grid, n_real)
     tn_curve = _nanmean0(res["all_tn"]["lat"])
     checks = {"all_tn_latency_non_decreasing": bool(np.all(np.diff(tn_curve) >= -0.05 * tn_curve[:-1]))}
-    log("drone-only (no IoT load), nominal bandwidths and threshold:")
+    log(f"drone-only random access (no IoT preambles), co-channel activity {world.p_act:.3f}, "
+        f"nominal bandwidths and threshold:")
     _log_block(log, n_grid, res, indent="  ")
     _log_tiers(log, n_grid, res)
     _plot(n_grid, res, f"{outdir}/fig4_latency_vs_density.png")
@@ -263,12 +272,11 @@ def run(world, seeds, outdir, quick=False, log=print):
         _log_block(log, n_grid, sweep[th], indent="  ")
     _plot_causes(sweep, f"{outdir}/fig4c_outage_causes.png")
 
-    # massive-IoT background load on every tier's RA resources
-    iot = {name: res if lam == world.p.iot_ra_load else
-           _collect(SAGINWorld(replace(world.p, iot_ra_load=lam)), seeds, n_grid, n_real)
+    # massive-IoT background load on every tier's RA resources; co-channel activity follows the same level
+    iot = {name: _collect(SAGINWorld(replace(world.p, iot_ra_load=lam, cochannel_load=lam)), seeds, n_grid, n_real)
            for name, lam in IOT_LOADS.items()}
     for name, lam in IOT_LOADS.items():
-        log(f"IoT load {name} ({lam:g} preambles/resource/opportunity):")
+        log(f"IoT load {name} ({lam:g} preambles/resource/opportunity, co-channel activity {1 - np.exp(-lam):.3f}):")
         _log_block(log, n_grid, iot[name], indent="  ")
         _log_tiers(log, n_grid, iot[name], indent="    ")
     _plot_iot(iot, "acc_ms", 1.0, f"mean access delay at N={n_grid[-1]} (ms)", f"{outdir}/fig4d_access_delay_vs_iot.png")
@@ -276,8 +284,9 @@ def run(world, seeds, outdir, quick=False, log=print):
               f"{outdir}/fig4e_ra_failure_vs_iot.png")
 
     # congested HAPS: same runs with the HAPS random-access capacity reduced
-    iot16 = {name: _collect(SAGINWorld(replace(world.p, iot_ra_load=lam, n_ra_haps=HAPS_RA_REDUCED)), seeds,
-                            n_grid, n_real) for name, lam in IOT_LOADS.items()}
+    iot16 = {name: _collect(SAGINWorld(replace(world.p, iot_ra_load=lam, cochannel_load=lam,
+                                               n_ra_haps=HAPS_RA_REDUCED)), seeds, n_grid, n_real)
+             for name, lam in IOT_LOADS.items()}
     for name, lam in IOT_LOADS.items():
         log(f"HAPS RA resources {HAPS_RA_REDUCED}, IoT load {name} ({lam:g}):")
         _log_block(log, n_grid, iot16[name], indent="  ")

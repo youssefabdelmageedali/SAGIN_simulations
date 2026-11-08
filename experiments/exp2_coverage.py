@@ -9,7 +9,7 @@ from experiments.common import COLORS, band, make_rng, save, spread
 from sagin.world import SAGINWorld
 
 DIST_KM = np.round(np.arange(0, 10.01, 0.5), 2)
-REPORT_KM = [0.0, 2.0, 5.0, 10.0]
+REPORT_KM = [0.0, 1.0, 2.0, 3.0, 5.0, 10.0]
 CURVES = ["tn", "haps_ideal", "haps_err", "sat", "hybrid_ideal", "hybrid_err", "no_haps"]
 SWEEP_TH_DB = [-5.0, 0.0, 5.0]
 DRONE_GAINS_DBI = [0.0, 3.0, 10.0]
@@ -130,6 +130,14 @@ def summarize(world, seeds, n_real, terminal, log):
         out[f"{k}_mean_over_distance"] = spread(cov[k].mean(1))
         for d in REPORT_KM:
             out[f"{k}_at_{d:g}km"] = spread(cov[k][:, _at(d)])
+    # full co-channel load (p_act = 1), the previous assumption, for comparison
+    full = coverage_set(SAGINWorld(replace(p, cochannel_load=np.inf)), seeds, n_real)
+    log(f"  co-channel activity {world.p_act:.3f} (nominal) vs 1 (full load), coverage at "
+        f"{' / '.join(f'{d:g}' for d in REPORT_KM)} km:")
+    for k in CURVES:
+        log(f"    {k:13s} full load: " + " / ".join(f"{full[k][:, _at(d)].mean():.3f}" for d in REPORT_KM))
+    out["full_cochannel_load"] = {k: {**{f"at_{d:g}km": spread(full[k][:, _at(d)]) for d in REPORT_KM},
+                                      "curve_mean": full[k].mean(0).tolist()} for k in CURVES}
     out["threshold_sweep"] = {f"{th:+g}dB": {k: {**{f"at_{d:g}km": spread(c[k][:, _at(d)]) for d in REPORT_KM},
                                                  "mean_over_distance": spread(c[k].mean(1))} for k in CURVES}
                               for th, c in sweep.items()}

@@ -104,6 +104,11 @@ class Params:
     # (0 = drone-only). Active devices of a PPP picking resources uniformly give independent
     # Poisson counts per resource.
     iot_ra_load: float = 0.0
+    # co-channel activity: each co-channel interferer (TN IoT user, other-HAPS user, other-beam
+    # satellite user) is active independently with p_act = 1 - exp(-cochannel_load), the probability
+    # that a Poisson(load) number of IoT transmissions occupies the resource. 0.5 = the "medium" IoT
+    # load level of exp3; inf = full load (p_act = 1).
+    cochannel_load: float = 0.5
     # --- compute ------------------------------------------------------------
     drone_gflops: float = 470.0
     task_deadline_s: float = 1.0
@@ -155,6 +160,7 @@ PLACEHOLDERS = {
     "latency_limit_s": "latency outage limit",
     "tn_cap_margin": "terrestrial-first baseline TN load margin",
     "iot_ra_load": "IoT preambles per RA resource per opportunity (swept in exp3)",
+    "cochannel_load": "co-channel IoT load per resource; activity p_act = 1 - exp(-load) (medium level 0.5 nominal)",
     "task_deadline_s": "task deadline",
     "max_helpers": "helpers per task",
     "chunk_overhead_mbit": "per-helper transfer overhead",
@@ -209,6 +215,11 @@ class SAGINWorld:
     @property
     def access_th(self):
         return float(db2lin(self.p.access_th_db))
+
+    @property
+    def p_act(self):
+        """Probability that a co-channel interferer is active on the resource."""
+        return float(1.0 - np.exp(-self.p.cochannel_load))
 
     def ra_resources(self):
         """Random-access resources per tier, indexed TN=0, HAPS=1, SAT=2."""
@@ -375,7 +386,8 @@ class SAGINWorld:
         pw = dbm2w(p_iot[:, None] + p.g_iot_dbi + p.g_tn_dbi - pl_ib)
         pw_srv = pw[:, srv].T.copy()  # (drone, interferer)
         pw_srv[np.arange(n), srv] = 0.0  # the serving cell schedules the drone, not its own IoT user
-        interf = (pw_srv * self.nakagami(rng, pw_srv.shape)).sum(1)
+        active = rng.uniform(size=pw_srv.shape[1]) < self.p_act  # sparse IoT traffic: co-channel activity
+        interf = (pw_srv * active[None, :] * self.nakagami(rng, pw_srv.shape)).sum(1)
         return self.sinr(sig, interf, self.noise_w(p.b_tn_hz)), d_srv
 
     def ul_power_dbm(self, p_max_dbm, coupling_loss_db):
@@ -407,6 +419,7 @@ class SAGINWorld:
         pw = dbm2w(p.p_drone_access_dbm + p.g_drone_dbi + self.haps_gain_db(ang)
                    - self.fspl_db(du, p.f_haps_hz)) * self.shadowing(rng, du.shape)
         pw[np.arange(n), srv] = 0.0  # on the serving HAPS this resource belongs to the drone
+        pw = pw * (rng.uniform(size=pw.shape[1]) < self.p_act)[None, :]
         return self.sinr(sig, pw.sum(1), self.noise_w(p.b_haps_hz)), d_srv
 
     def sat_geometry(self, dep):
@@ -438,6 +451,7 @@ class SAGINWorld:
         d, el = self.sat_geometry(dep)
         shadow = self.shadowing(rng, n)
         intf_shadow = self.shadowing(rng, (n, p.n_sat_cochannel))
+        intf_shadow = intf_shadow * (rng.uniform(size=p.n_sat_cochannel) < self.p_act)[None, :]
         if el < p.sat_min_elev_deg:
             return np.zeros(n), np.full(n, np.inf)
         base = p.p_drone_access_dbm + p.g_drone_dbi - self.fspl_db(d, p.f_sat_hz) - p.sat_losses_db
@@ -486,9 +500,20 @@ class SAGINWorld:
             slot += 1
         return delay
 
-    def expected_access(self, n_contenders, n_ra):
-        """Analytic counterpart of random_access for load-aware decisions.
+    def expected_access_sim(self, n_contenders):
+        """Expected access delay given success [s] and failure probability for a drone that joins
+        a tier on which n_contenders drones (itself included) start random access together, taken
+        from Monte Carlo runs of random_access itself (same back-off, attempt limit and IoT load).
+        n_contenders: (..., 3) per tier. Returns two arrays of the same shape."""
+        delay_t, fail_t = _access_table(self)
+        n = np.clip(np.asarray(n_contenders, dtype=int), 1, delay_t.shape[1] - 1)
+        cols = np.broadcast_to(np.arange(3), n.shape)
+        return delay_t[cols, n], fail_t[cols, n]
 
+    def expected_access(self, n_contenders, n_ra):
+        """Analytic counterpart of random_access for load-aware decisions (conservative variant).
+
+        Assumes every assigned drone keeps contending at every attempt.
         Per-attempt success p = exp(-(n - 1)/n_ra - iot_ra_load) (Poisson collisions with the
         other n - 1 contenders and the IoT background), the same back-off and attempt limit.
         Returns (expected access delay given success [s], failure probability).
@@ -579,3 +604,28 @@ class SAGINWorld:
 
     def endurance_s(self, cycle_energy_j):
         return self.battery_j * self.p.capture_interval_s / np.asarray(cycle_energy_j, dtype=float)
+
+
+_ACCESS_TABLES = {}
+ACCESS_TABLE_N_MAX = 64
+ACCESS_TABLE_TRIALS = 400
+
+
+def _access_table(world):
+    """Per-tier tables of E[access delay | success] and P[failure] vs. number of simultaneous
+    contenders, from random_access with a fixed seed; cached per random-access configuration."""
+    p = world.p
+    key = (p.n_ra_tn, p.n_ra_haps, p.n_ra_sat, p.t_ra_s, p.backoff_cap_exp, p.ra_max_attempts, p.iot_ra_load)
+    if key not in _ACCESS_TABLES:
+        rng = np.random.default_rng(0)
+        delay = np.zeros((3, ACCESS_TABLE_N_MAX + 1))
+        fail = np.zeros((3, ACCESS_TABLE_N_MAX + 1))
+        for t in range(3):
+            for n in range(1, ACCESS_TABLE_N_MAX + 1):
+                acc = world.random_access(np.full((ACCESS_TABLE_TRIALS, n), t),
+                                          np.ones((ACCESS_TABLE_TRIALS, n), dtype=bool), rng)
+                ok = np.isfinite(acc)
+                fail[t, n] = 1 - ok.mean()
+                delay[t, n] = acc[ok].mean() if ok.any() else np.inf
+        _ACCESS_TABLES[key] = (delay, fail)
+    return _ACCESS_TABLES[key]
