@@ -5,9 +5,10 @@ Drone Swarms and Massive IoT". Central claim: the communication graph is DERIVED
 SINR (edge iff SINR_ij > gamma_th), not assumed from distance.
 
 ## Layout
-- `sagin_world.py`  : the ONLY physics engine (class SAGINWorld, dataclass Params).
-- `fig2..fig5b_*.py`: experiment scripts. They call SAGINWorld and must NOT re-implement physics.
-- `run_all.py`      : runs everything, writes PNGs + `results/run_log.txt`.
+- `sagin/world.py`  : the ONLY physics engine (class SAGINWorld, dataclass Params, PLACEHOLDERS).
+- `experiments/exp*.py`: experiment scripts. They call SAGINWorld and must NOT re-implement physics.
+- `run_all.py`      : runs everything, writes PNGs + `results/run_log.txt` + `results/metrics.json`.
+- `tests/test_world.py`: pytest sanity tests (`python -m pytest -q tests`).
 
 ## Rules
 - Run with `python run_all.py`. Output goes to `results/`.
@@ -20,11 +21,6 @@ SINR (edge iff SINR_ij > gamma_th), not assumed from distance.
 - Figures have NO baked-in titles (the paper adds captions).
 - Report numbers exactly as the logs print them. Do not round up or invent results.
 
-## Expected reference results (seed-fixed; small drift is fine, big drift is a bug)
-- Fig2: SG degree peak ~6.0 at ~10 drones/km2, then ~4.7; distance rule keeps climbing.
-- Fig3: TN dies ~3 km; sat alone ~47%; HAPS alone ~90% ideal / ~64% at sigma_b=3 deg;
-  hybrid 93% / 78% at 10 km.
-- Fig4: all-TN 106->552 ms (2% outage); all-HAPS 38->45 (8.3%); all-Sat 212->225 (52.9%);
-  balanced 102->123 ms (0.1%).
-- Fig5a: solo wall at 470 GFLOP; coop 100% -> 73.4% at 2000 GFLOP.
-- Fig5b: raw->Sat dies ~43 min; raw->HAPS ~63; edge-AI ~73 (flight-only ceiling 74 min).
+## Reference results
+The numbers previously listed here came from the old implementation (removed) and do not
+apply to the from-scratch rebuild. Current results: `results/run_log.txt`, `results/metrics.json`.

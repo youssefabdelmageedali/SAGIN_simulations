@@ -1,42 +1,49 @@
-===== fig2 (208s) exit=0
-SG-derived degree peaks at avg N=40 (density=10.0/km^2), value=5.973
-SG-derived degree at highest density: 4.713 (21% below peak)
-SG-derived degree monotone non-increasing after peak: True
-Saved fig2_degree_vs_density.png
+===== exp1 (fig2) 65s
+SG-derived degree peaks at density 4/km^2, value 8.132 (seed peaks 8.119..8.307 at [4, 4, 4, 8, 4])
+SG-derived degree at 250/km^2: 6.048 (25.6% below peak)
+Naive rule r0 = 150.1 m (seed range 144.4..159.3); naive degree 4.293 -> 22.329
+check sg_peaks_before_max_density: True
+check naive_monotone_non_decreasing: False
 
-===== fig3 (1s) exit=0
-TN-only monotone non-increasing: True
-TN-only: 1.000 at 0km -> 0.000 at 10km
-HAPS alone (ideal): ~0.901 (near-flat)
-HAPS alone (sigma_b=3.0deg): ~0.636 -- pointing error costs a standalone HAPS 26pp
-Satellite alone: ~0.470 (genuine last resort)
-Hybrid (ideal): 1.000 at 0km -> 0.932 at 10km
-Hybrid (err):   1.000 at 0km -> 0.784 at 10km
-Hybrid(ideal) >= max(individual tiers) at every distance: True
-Saved fig3_coverage_vs_distance.png
+===== exp2 (fig3) 4s
+tn           : 0.362 at 0 km -> 0.000 at 10 km (mean over distance 0.071)
+haps_ideal   : 0.311 at 0 km -> 0.300 at 10 km (mean over distance 0.316)
+haps_err     : 0.156 at 0 km -> 0.152 at 10 km (mean over distance 0.158)
+sat          : 0.154 at 0 km -> 0.158 at 10 km (mean over distance 0.158)
+hybrid_ideal : 0.626 at 0 km -> 0.408 at 10 km (mean over distance 0.465)
+hybrid_err   : 0.539 at 0 km -> 0.282 at 10 km (mean over distance 0.341)
+no_haps      : 0.457 at 0 km -> 0.158 at 10 km (mean over distance 0.217)
+TN coverage first below 0.5 at 0.0 km, below 0.01 at 2.5 km
+HAPS tier gain at 10 km: hybrid(ideal) 0.408 vs TN+sat only 0.158
+check tn_non_increasing: False
+check hybrid_ge_every_tier: True
+check haps_err_le_ideal: True
 
-===== fig4 (77s) exit=0
-all-TN latency monotone non-decreasing: True
-all-TN:   106 -> 552 ms  (outage 2.0%)
-all-HAPS: 38 -> 45 ms  (outage 8.3%)
-all-Sat:  212 -> 225 ms  (outage 52.9%)
-balanced: 102 -> 123 ms  (outage 0.1%)
-Trade-off check: no single tier is best on BOTH latency and outage; balanced should be near-best on both.
-Saved fig4_latency_vs_density.png
+===== exp3 (fig4) 7s
+all_tn   : 152.7 -> 210.7 ms (N=1..50), outage mean 72.6%, at N=50 72.4%
+all_haps : 44.0 -> 52.9 ms (N=1..50), outage mean 68.7%, at N=50 68.9%
+all_sat  : 135.8 -> 146.3 ms (N=1..50), outage mean 83.8%, at N=50 83.6%
+balanced : 107.8 -> 104.3 ms (N=1..50), outage mean 41.7%, at N=50 41.5%
+equal 5 MHz bandwidth on every tier:
+  all_tn   : 35.8 -> 101.8 ms, outage mean 72.4%
+  all_haps : 44.0 -> 52.7 ms, outage mean 68.6%
+  all_sat  : 48.3 -> 60.4 ms, outage mean 98.7%
+  balanced : 39.6 -> 45.4 ms, outage mean 49.0%
+check all_tn_latency_non_decreasing: True
 
-===== fig5a (13s) exit=0
-Average swarm size across trials: 32.0 drones (Poisson-distributed via PCP, target ~32)
-Solo completion: 100.0% at G=100 -> 0.0% at G=2000
-Coop completion: 100.0% at G=100 -> 73.4% at G=2000
-Solo monotone non-increasing in complexity: True
-Saved fig5a_completion_vs_complexity.png
+===== exp4 (fig5a) 0s
+solo: 100% up to 470 GFLOP, 0% above (step at capacity x deadline)
+coop completion: 500 GFLOP 99.5%, 1000 GFLOP 97.9%, 1500 GFLOP 94.6%, 2000 GFLOP 89.3%
+mean SG out-degree 8.71, mean helpers used 4.64
+check solo_exact_step: True
+check coop_ge_solo: True
 
-===== fig5b (1s) exit=0
-Raw -> Satellite        dies at 43.2 min  monotone non-increasing: True
-Edge-AI -> Satellite    dies at 72.8 min  monotone non-increasing: True
-Raw -> HAPS             dies at 62.8 min  monotone non-increasing: True
-Edge-AI -> HAPS         dies at 72.8 min  monotone non-increasing: True
-At 30 min: raw-sat=3.9%  edge-sat=58.8%  raw-haps=45.9%  edge-haps=58.8%
-Note: both edge-AI curves converge to nearly the same endurance regardless of tier -- once the payload is small, tier choice barely matters.
-Saved fig5b_battery_vs_time.png
+===== exp5 (fig5b) 1s
+raw → satellite      median endurance 18.2 min (seed range 17.7..19.1)
+raw → HAPS           median endurance 43.7 min (seed range 43.3..44.1)
+edge-AI → satellite  median endurance 68.3 min (seed range 68.3..68.3)
+edge-AI → HAPS       median endurance 68.3 min (seed range 68.3..68.3)
+flight-only ceiling 74.0 min
+median airtime to upload one raw capture: HAPS 104.0 s, satellite 460.8 s (capture interval 10 s)
+check below_flight_ceiling: True
 
