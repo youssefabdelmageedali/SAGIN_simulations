@@ -1,11 +1,18 @@
 """Exp 2 (Fig. 3): coverage probability vs. distance from the hub, per tier and hybrid."""
+from dataclasses import replace
+
 import numpy as np
 import matplotlib.pyplot as plt
 
 from experiments.common import COLORS, FIGSIZE, band, make_rng, save, spread
+from sagin.world import SAGINWorld
 
 DIST_KM = np.round(np.arange(0, 10.01, 0.5), 2)
 CURVES = ["tn", "haps_ideal", "haps_err", "sat", "hybrid_ideal", "hybrid_err", "no_haps"]
+SWEEP_TH_DB = [-5.0, 0.0, 5.0]
+LABELS = {"tn": "TN alone", "haps_ideal": "HAPS alone, ideal", "haps_err": "HAPS alone, σ_b=3°",
+          "sat": "satellite alone", "hybrid_ideal": "hybrid, ideal HAPS", "hybrid_err": "hybrid, σ_b=3°",
+          "no_haps": "TN + satellite (no HAPS)"}
 
 
 def coverage(world, seed, dist_km, n_real):
@@ -77,8 +84,44 @@ def run(world, seeds, outdir, quick=False, log=print):
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False)
     save(fig, f"{outdir}/fig3_coverage_vs_distance.png")
 
+    # access-threshold sensitivity (same seeds and geometry; only the threshold changes)
+    sweep = {}
+    for th_db in SWEEP_TH_DB:
+        if th_db == world.p.access_th_db:
+            c = cov
+        else:
+            w = SAGINWorld(replace(world.p, access_th_db=th_db))
+            r = [coverage(w, s, DIST_KM, n_real) for s in seeds]
+            c = {k: np.array([x[k] for x in r]) for k in CURVES}
+        sweep[th_db] = c
+    log("access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):")
+    i5 = int(np.argmin(np.abs(DIST_KM - 5)))
+    for k in CURVES:
+        log(f"  {k:13s} " + " | ".join(
+            f"{th:+g} dB: {sweep[th][k][:, 0].mean():.3f}/{sweep[th][k][:, i5].mean():.3f}/{sweep[th][k][:, -1].mean():.3f}"
+            for th in SWEEP_TH_DB))
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    style = {"tn": (COLORS["tn"], "-", "s"), "haps_ideal": (COLORS["haps"], "-", "d"),
+             "haps_err": (COLORS["haps"], "--", "d"), "sat": (COLORS["sat"], "-", "x"),
+             "hybrid_ideal": (COLORS["hybrid"], "-", "o"), "hybrid_err": (COLORS["hybrid"], "--", "o"),
+             "no_haps": (COLORS["hybrid"], ":", "o")}
+    for k in CURVES:
+        col, ls, mk = style[k]
+        band(ax, SWEEP_TH_DB, np.array([sweep[th][k].mean(1) for th in SWEEP_TH_DB]).T, col, LABELS[k],
+             linestyle=ls, marker=mk)
+    ax.set_xlabel("access threshold (dB)")
+    ax.set_ylabel("coverage, mean over 0–10 km")
+    ax.set_xticks(SWEEP_TH_DB)
+    ax.set_ylim(-0.02, 1.02)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False)
+    save(fig, f"{outdir}/fig3b_coverage_threshold_sweep.png")
+
     out = {"distances_km": DIST_KM.tolist(), "tn_below_half_km": tn_half_km, "tn_below_1pct_km": tn_zero_km,
            "checks": checks}
+    out["threshold_sweep"] = {f"{th:+g}dB": {k: {"at_0km": spread(c[k][:, 0]), "at_5km": spread(c[k][:, i5]),
+                                                  "at_10km": spread(c[k][:, -1]),
+                                                  "mean_over_distance": spread(c[k].mean(1))} for k in CURVES}
+                              for th, c in sweep.items()}
     for k in CURVES:
         out[f"{k}_curve_mean"] = m[k].tolist()
         out[f"{k}_at_0km"] = spread(cov[k][:, 0])

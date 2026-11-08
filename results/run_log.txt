@@ -1,49 +1,75 @@
-===== exp1 (fig2) 65s
-SG-derived degree peaks at density 4/km^2, value 8.132 (seed peaks 8.119..8.307 at [4, 4, 4, 8, 4])
-SG-derived degree at 250/km^2: 6.048 (25.6% below peak)
-Naive rule r0 = 150.1 m (seed range 144.4..159.3); naive degree 4.293 -> 22.329
+===== exp1 (fig2) 62s
+SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
+SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
+Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
 check sg_peaks_before_max_density: True
 check naive_monotone_non_decreasing: False
 
-===== exp2 (fig3) 4s
-tn           : 0.362 at 0 km -> 0.000 at 10 km (mean over distance 0.071)
-haps_ideal   : 0.311 at 0 km -> 0.300 at 10 km (mean over distance 0.316)
-haps_err     : 0.156 at 0 km -> 0.152 at 10 km (mean over distance 0.158)
-sat          : 0.154 at 0 km -> 0.158 at 10 km (mean over distance 0.158)
-hybrid_ideal : 0.626 at 0 km -> 0.408 at 10 km (mean over distance 0.465)
-hybrid_err   : 0.539 at 0 km -> 0.282 at 10 km (mean over distance 0.341)
-no_haps      : 0.457 at 0 km -> 0.158 at 10 km (mean over distance 0.217)
-TN coverage first below 0.5 at 0.0 km, below 0.01 at 2.5 km
-HAPS tier gain at 10 km: hybrid(ideal) 0.408 vs TN+sat only 0.158
-check tn_non_increasing: False
+===== exp2 (fig3) 11s
+tn           : 0.889 at 0 km -> 0.019 at 10 km (mean over distance 0.615)
+haps_ideal   : 0.910 at 0 km -> 1.000 at 10 km (mean over distance 0.954)
+haps_err     : 0.818 at 0 km -> 0.945 at 10 km (mean over distance 0.880)
+sat          : 0.998 at 0 km -> 0.998 at 10 km (mean over distance 0.998)
+hybrid_ideal : 1.000 at 0 km -> 1.000 at 10 km (mean over distance 1.000)
+hybrid_err   : 1.000 at 0 km -> 1.000 at 10 km (mean over distance 1.000)
+no_haps      : 1.000 at 0 km -> 0.998 at 10 km (mean over distance 0.999)
+TN coverage first below 0.5 at 7.0 km, below 0.01 at None km
+HAPS tier gain at 10 km: hybrid(ideal) 1.000 vs TN+sat only 0.998
+check tn_non_increasing: True
 check hybrid_ge_every_tier: True
 check haps_err_le_ideal: True
+access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):
+  tn            -5 dB: 0.971/0.941/0.430 | +0 dB: 0.945/0.892/0.161 | +5 dB: 0.889/0.810/0.019
+  haps_ideal    -5 dB: 0.989/0.995/1.000 | +0 dB: 0.963/0.980/1.000 | +5 dB: 0.910/0.954/1.000
+  haps_err      -5 dB: 0.948/0.968/0.987 | +0 dB: 0.896/0.935/0.973 | +5 dB: 0.818/0.879/0.945
+  sat           -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 0.998/0.998/0.998
+  hybrid_ideal  -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
+  hybrid_err    -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
+  no_haps       -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/0.998
 
-===== exp3 (fig4) 7s
-all_tn   : 152.7 -> 210.7 ms (N=1..50), outage mean 72.6%, at N=50 72.4%
-all_haps : 44.0 -> 52.9 ms (N=1..50), outage mean 68.7%, at N=50 68.9%
-all_sat  : 135.8 -> 146.3 ms (N=1..50), outage mean 83.8%, at N=50 83.6%
-balanced : 107.8 -> 104.3 ms (N=1..50), outage mean 41.7%, at N=50 41.5%
+===== exp3 (fig4) 10s
+all_tn   : 92.8 -> 148.1 ms (N=1..50), outage mean 11.0% (no_coverage 11.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 12.0%
+all_haps : 22.7 -> 30.1 ms (N=1..50), outage mean 9.1% (no_coverage 9.1%, ra_failure 0.0%, over_limit 0.0%), at N=50 8.4%
+all_sat  : 71.1 -> 77.9 ms (N=1..50), outage mean 0.2% (no_coverage 0.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.2%
+balanced : 86.7 -> 41.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 equal 5 MHz bandwidth on every tier:
-  all_tn   : 35.8 -> 101.8 ms, outage mean 72.4%
-  all_haps : 44.0 -> 52.7 ms, outage mean 68.6%
-  all_sat  : 48.3 -> 60.4 ms, outage mean 98.7%
-  balanced : 39.6 -> 45.4 ms, outage mean 49.0%
+  all_tn   : 24.8 -> 81.0 ms (N=1..50), outage mean 12.2% (no_coverage 12.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 12.1%
+  all_haps : 22.7 -> 30.5 ms (N=1..50), outage mean 9.0% (no_coverage 9.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.2%
+  all_sat  : 32.4 -> 39.3 ms (N=1..50), outage mean 2.3% (no_coverage 2.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 2.5%
+  balanced : 24.7 -> 28.0 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+access threshold -5 dB:
+  all_tn   : 116.4 -> 174.7 ms (N=1..50), outage mean 3.3% (no_coverage 2.8%, ra_failure 0.0%, over_limit 0.5%), at N=50 3.8%
+  all_haps : 29.2 -> 36.7 ms (N=1..50), outage mean 0.9% (no_coverage 0.9%, ra_failure 0.0%, over_limit 0.0%), at N=50 1.1%
+  all_sat  : 71.3 -> 78.1 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 114.0 -> 44.4 ms (N=1..50), outage mean 0.2% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.2%), at N=50 0.0%
+access threshold +0 dB:
+  all_tn   : 102.9 -> 157.9 ms (N=1..50), outage mean 5.7% (no_coverage 5.7%, ra_failure 0.0%, over_limit 0.0%), at N=50 5.2%
+  all_haps : 25.2 -> 32.8 ms (N=1..50), outage mean 3.6% (no_coverage 3.6%, ra_failure 0.0%, over_limit 0.0%), at N=50 3.6%
+  all_sat  : 71.3 -> 78.1 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 98.8 -> 41.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+access threshold +5 dB:
+  all_tn   : 92.8 -> 148.1 ms (N=1..50), outage mean 11.0% (no_coverage 11.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 12.0%
+  all_haps : 22.7 -> 30.1 ms (N=1..50), outage mean 9.1% (no_coverage 9.1%, ra_failure 0.0%, over_limit 0.0%), at N=50 8.4%
+  all_sat  : 71.1 -> 77.9 ms (N=1..50), outage mean 0.2% (no_coverage 0.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.2%
+  balanced : 86.7 -> 41.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 check all_tn_latency_non_decreasing: True
 
 ===== exp4 (fig5a) 0s
 solo: 100% up to 470 GFLOP, 0% above (step at capacity x deadline)
-coop completion: 500 GFLOP 99.5%, 1000 GFLOP 97.9%, 1500 GFLOP 94.6%, 2000 GFLOP 89.3%
-mean SG out-degree 8.71, mean helpers used 4.64
+coop completion: 500 GFLOP 99.5%, 1000 GFLOP 98.2%, 1500 GFLOP 95.5%, 2000 GFLOP 91.0%
+mean SG out-degree 9.75, mean helpers used 4.70
 check solo_exact_step: True
 check coop_ge_solo: True
 
 ===== exp5 (fig5b) 1s
-raw → satellite      median endurance 18.2 min (seed range 17.7..19.1)
-raw → HAPS           median endurance 43.7 min (seed range 43.3..44.1)
+raw streaming needs 80.0 Mbit/s (800 Mbit every 10 s); edge-AI report needs 2.0 kbit/s
+  TN        achievable rate median 6.53 Mbit/s (95th pct 13.46); raw feasible for 0.0% of drones; median fraction of raw delivered 8.2%; median backlog after 80 min 352.6 Gbit; report feasible for 99.8%
+  HAPS      achievable rate median 33.29 Mbit/s (95th pct 47.55); raw feasible for 0.0% of drones; median fraction of raw delivered 41.6%; median backlog after 80 min 224.2 Gbit; report feasible for 100.0%
+  satellite achievable rate median 8.61 Mbit/s (95th pct 11.88); raw feasible for 0.0% of drones; median fraction of raw delivered 10.8%; median backlog after 80 min 342.7 Gbit; report feasible for 100.0%
+raw → satellite      median endurance 69.4 min (seed range 69.4..69.4)
+raw → HAPS           median endurance 69.4 min (seed range 69.4..69.4)
 edge-AI → satellite  median endurance 68.3 min (seed range 68.3..68.3)
 edge-AI → HAPS       median endurance 68.3 min (seed range 68.3..68.3)
 flight-only ceiling 74.0 min
-median airtime to upload one raw capture: HAPS 104.0 s, satellite 460.8 s (capture interval 10 s)
 check below_flight_ceiling: True
 

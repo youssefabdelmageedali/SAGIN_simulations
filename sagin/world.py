@@ -30,14 +30,14 @@ class Params:
     f_haps_hz: float = 20e9
     f_sat_hz: float = 20e9
     # --- transmit powers ----------------------------------------------------
-    p_drone_access_dbm: float = 20.0
+    p_drone_access_dbm: float = 30.0  # UAV value, Lou et al. Table I
     p_drone_mesh_dbm: float = 10.0
     p_iot_dbm: float = 20.0
     # --- antenna gains ------------------------------------------------------
-    g_drone_dbi: float = 3.0
+    g_drone_dbi: float = 10.0  # UAV value, Lou et al. Table I (also used on mesh links)
     g_tn_dbi: float = 15.0
-    g_haps_dbi: float = 25.0
-    g_sat_dbi: float = 48.0
+    g_haps_dbi: float = 30.0  # Lou et al. Table I
+    g_sat_dbi: float = 50.0  # Lou et al. Table I
     g_iot_dbi: float = 0.0
     # --- fading / noise -----------------------------------------------------
     nakagami_m: float = 2.0
@@ -55,8 +55,9 @@ class Params:
     sidelobe_db: float = -30.0  # sidelobe floor relative to boresight (HAPS and sat)
     sigma_b_deg: float = 3.0  # pointing-error std used in the "with error" cases
     # --- deployments --------------------------------------------------------
-    tn_core_radius_km: float = 1.5  # TN base stations: PPP inside this disk around the hub
-    tn_density_km2: float = 3.0
+    # TN base stations: homogeneous PPP over the whole region; 0.2 /km^2 gives an
+    # equivalent cell radius 1/sqrt(pi*lambda) = 1.26 km
+    tn_density_km2: float = 0.2
     tn_interferer_radius_m: float = 300.0  # co-channel IoT uplink user around each other BS
     n_haps: int = 3
     n_sat: int = 720
@@ -104,8 +105,7 @@ PLACEHOLDERS = {
     "shadow_std_db": "shadowed-Rician approximation for HAPS/sat",
     "haps_beamwidth_deg": "HAPS spot-beam 3 dB width",
     "sidelobe_db": "sidelobe floor for HAPS and satellite beams",
-    "tn_core_radius_km": "TN deployed only in an urban core around the hub",
-    "tn_density_km2": "TN base-station density",
+    "tn_density_km2": "TN base-station density (equivalent cell radius 1.26 km)",
     "tn_interferer_radius_m": "co-channel uplink user placement around other BSs",
     "n_haps": "number of HAPS over the region",
     "n_sat": "LEO constellation size for the spherical BPP",
@@ -151,7 +151,7 @@ def dbm2w(x):
 @dataclass
 class Deployment:
     """One realization of the infrastructure point processes."""
-    bs_xy: np.ndarray  # (K, 2) TN base stations (PPP in the urban core)
+    bs_xy: np.ndarray  # (K, 2) TN base stations (PPP over the region)
     iot_xy: np.ndarray  # (K, 2) one co-channel uplink IoT user per BS
     haps_xyz: np.ndarray  # (H, 3) HAPS (BPP over the region)
     haps_intf_xy: np.ndarray  # (H, 2) one co-channel user per HAPS
@@ -257,11 +257,10 @@ class SAGINWorld:
     def deploy(self, rng):
         """Draw one realization of TN (PPP), HAPS (BPP) and satellites (spherical BPP)."""
         p = self.p
-        r_core = p.tn_core_radius_km * 1e3
-        n_bs = rng.poisson(p.tn_density_km2 * np.pi * p.tn_core_radius_km ** 2)
-        bs = self._uniform_disk(n_bs, r_core, rng)
-        iot = bs + self._uniform_disk(n_bs, p.tn_interferer_radius_m, rng)
         half = p.region_km * 1e3 / 2
+        n_bs = rng.poisson(p.tn_density_km2 * p.region_km ** 2)
+        bs = rng.uniform(-half, half, (n_bs, 2))
+        iot = bs + self._uniform_disk(n_bs, p.tn_interferer_radius_m, rng)
         haps = np.column_stack([rng.uniform(-half, half, (p.n_haps, 2)), np.full(p.n_haps, p.h_haps_m)])
         haps_intf = rng.uniform(-half, half, (p.n_haps, 2))
         # n_sat points uniform on the orbital sphere: cos(psi) ~ U(-1, 1) each; keep the max
@@ -444,11 +443,27 @@ class SAGINWorld:
     def flight_ceiling_s(self):
         return self.battery_j / self.p.p_flight_w
 
-    def cycle_energy_j(self, payload_mbit, rate_bps, onboard_compute):
-        """Energy per capture cycle: flight + radio (P_tx x airtime) + optional compute."""
-        p = self.p
+    def required_rate_bps(self, payload_mbit):
+        """Rate needed to stream one payload per capture interval."""
+        return payload_mbit * 1e6 / self.p.capture_interval_s
+
+    def airtime_s(self, payload_mbit, rate_bps):
+        """Radio-on time per cycle. When the payload does not fit in one interval
+        (rate < required rate) the radio transmits for the whole interval and the
+        remainder joins a backlog queue (see backlog_mbit)."""
         with np.errstate(divide="ignore"):
-            e = p.p_flight_w * p.capture_interval_s + p.p_tx_w * payload_mbit * 1e6 / rate_bps
+            t = payload_mbit * 1e6 / rate_bps
+        return np.minimum(t, self.p.capture_interval_s)
+
+    def backlog_mbit(self, t_s, payload_mbit, rate_bps):
+        """Unsent data (Mbit) at times t_s for drones streaming at rate_bps (fluid queue)."""
+        growth = np.maximum(self.required_rate_bps(payload_mbit) - np.asarray(rate_bps, dtype=float), 0.0)
+        return np.outer(growth, t_s) / 1e6
+
+    def cycle_energy_j(self, payload_mbit, rate_bps, onboard_compute):
+        """Energy per capture cycle: flight + radio (P_tx x airtime, capped at the interval) + optional compute."""
+        p = self.p
+        e = p.p_flight_w * p.capture_interval_s + p.p_tx_w * self.airtime_s(payload_mbit, rate_bps)
         if onboard_compute:
             e = e + p.p_compute_w * p.capture_interval_s
         return e

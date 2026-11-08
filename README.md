@@ -24,10 +24,10 @@ bit-identical `metrics.json` (tested).
 |---|---|
 | `sagin/world.py` | the only physics engine: `Params`, `SAGINWorld` (geometry, path loss, fading, SINR, random access, latency, compute, energy) |
 | `experiments/exp1_graph.py` | Exp 1 → `fig2_degree_vs_density.png` |
-| `experiments/exp2_coverage.py` | Exp 2 → `fig3_coverage_vs_distance.png` (includes no-HAPS ablation) |
-| `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png` |
+| `experiments/exp2_coverage.py` | Exp 2 → `fig3_coverage_vs_distance.png` (incl. no-HAPS ablation), `fig3b_coverage_threshold_sweep.png` |
+| `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png`, `fig4c_outage_causes.png` |
 | `experiments/exp5a_compute.py` | Exp 4 → `fig5a_completion_vs_complexity.png` |
-| `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png` |
+| `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png` |
 | `experiments/common.py` | plotting style, colours, seeding (no physics) |
 | `run_all.py` | runs everything, writes log + metrics |
 | `tests/test_world.py` | the 8 sanity tests |
@@ -35,7 +35,7 @@ bit-identical `metrics.json` (tested).
 ## Model
 
 - **Geometry.** 10 × 10 km region, hub at the origin. Drones at 100 m, HAPS at 20 km, LEO at 550 km.
-  TN base stations: PPP inside a 1.5 km urban core around the hub. Drone swarm: Thomas cluster
+  TN base stations: homogeneous PPP over the whole region (0.2 /km²). Drone swarm: Thomas cluster
   process. HAPS: BPP over the region. Satellites: spherical BPP (n_sat uniform on the orbital
   shell, serving = max elevation, ≥ 10°).
 - **SINR.** SINR = P G |h|² PL⁻¹ / (I + N0), N0 = −174 dBm/Hz + 10log10(B) + 7 dB.
@@ -54,7 +54,9 @@ bit-identical `metrics.json` (tested).
 - **Compute.** Solo completes iff size ≤ 470 GFLOPS × 1 s. Cooperative: owner + up to 5 SG-graph
   out-neighbours (best SINR); each helper first receives 0.2 Mbit at its mesh Shannon rate, then
   computes until the deadline.
-- **Energy** per 10 s cycle = 120 W × 10 s + 8 W × payload / rate (+ 10 W × 10 s with on-board compute).
+- **Energy** per 10 s cycle = 120 W × 10 s + 8 W × airtime (+ 10 W × 10 s with on-board compute), where
+  airtime = min(payload / rate, 10 s). If the required rate payload / 10 s exceeds the achievable rate the
+  radio transmits the whole cycle and the excess joins a backlog queue (fluid model, `backlog_mbit`).
 - **Decision policy.** The balanced latency policy is a non-learned feasibility-aware rule. No
   Graph-MARL policy is implemented or claimed.
 
@@ -63,8 +65,8 @@ bit-identical `metrics.json` (tested).
 | Quantity | Value | Source |
 |---|---|---|
 | Carrier TN / HAPS / sat | 2 / 20 / 20 GHz | assumption |
-| Drone Tx power access / mesh | 20 / 10 dBm | Lou, Belmekki, Alouini, arXiv:2310.09659 |
-| Antenna gain drone / TN / HAPS / sat | 3 / 15 / 25 / 48 dBi | Lou et al. (drone 3 dBi); others tuned |
+| Drone Tx power access / mesh | 30 / 10 dBm | access: Lou, Belmekki, Alouini, arXiv:2310.09659, Table I (UAV); mesh unchanged |
+| Antenna gain drone / TN / HAPS / sat | 10 / 15 / 30 / 50 dBi | drone, HAPS, sat: Lou et al. Table I; TN tuned |
 | Nakagami m | 2 | Lou et al. |
 | Bandwidth TN / HAPS / sat / mesh | 1 / 5 / 1.5 / 20 MHz | HAPS ≈ HIBS 5 MHz (Alexandre 2021); sat ≈ IoT-NTN Cat M1 1.4 MHz (Jamshed 2025) |
 | RA resources TN / HAPS / sat | 12 / 64 / 64 | TN = NB-IoT NPRACH (Lin 2016); 64 = **PLACEHOLDER** |
@@ -80,7 +82,7 @@ bit-identical `metrics.json` (tested).
 | Shadowing std (HAPS/sat) | 4 dB | **PLACEHOLDER** |
 | HAPS beamwidth / sidelobe floor / σ_b | 5° / −30 dB / 3° | **PLACEHOLDERS** (σ_b = 3° from the spec) |
 | BS height / IoT interferer power | 25 m / 20 dBm | **PLACEHOLDERS** |
-| TN core radius / BS density / interferer radius | 1.5 km / 3 per km² / 300 m | **PLACEHOLDERS** |
+| TN BS density / interferer radius | 0.2 per km² (equivalent cell radius 1.26 km) / 300 m | **PLACEHOLDERS** |
 | HAPS count / satellites / min elevation / sat co-channel users | 3 / 720 / 10° / 6 | **PLACEHOLDERS** |
 | PCP mean cluster size / spread | 10 / 100 m | **PLACEHOLDERS** |
 | Mission disk radius / spread (exp3, exp5) | 2 km / 200 m | **PLACEHOLDERS** |
@@ -89,6 +91,31 @@ bit-identical `metrics.json` (tested).
 | Helpers / chunk overhead | 5 / 0.2 Mbit | spec; **PLACEHOLDERS** |
 
 The machine-readable list is `PLACEHOLDERS` in `sagin/world.py`, copied into `metrics.json`.
+
+## Changes in revision 2 (and why)
+
+1. **UAV link-budget values.** Drone access Tx power 20 → 30 dBm and drone antenna gain 3 → 10 dBi
+   (the paper's drones are UAVs; these are the UAV values in Lou et al. Table I). HAPS gain 25 → 30 dBi
+   and satellite gain 48 → 50 dBi from the same table. Nothing else was changed to hit targets.
+   Side effect: the drone gain is used at both ends of mesh links, so mesh links gain 14 dB too
+   (exp1 and exp4 change); mesh Tx power stays 10 dBm.
+2. **TN deployment.** The old 1.5 km "urban core" made TN coverage *rise* away from the hub (edge
+   cells had fewer co-channel interferers) and failed the monotonicity test. Base stations are now a
+   homogeneous PPP over the whole 10 × 10 km region at 0.2 /km², i.e. an equivalent cell radius
+   1/√(πλ) = 1.26 km, inside the requested 1–1.5 km. Coverage is flat (≈ 0.89) up to ~3.5 km and falls
+   only towards and beyond the region edge (5 km); it is **not** measurably highest at the hub.
+   The co-channel interferer placement (300 m around each BS) was left unchanged.
+3. **Raw-payload feasibility.** Raw streaming needs 800 Mbit / 10 s = 80 Mbit/s. The old energy model
+   charged P_tx × payload / rate even when that exceeded the 10 s cycle (104 s on HAPS, 461 s on
+   satellite), which is physically impossible. Now airtime is capped at the cycle and the shortfall is
+   modelled as a growing backlog queue; exp5 reports required vs achievable rate per tier, the fraction
+   of drones for which raw streaming is feasible, the fraction of raw data delivered and the backlog
+   (`fig5c_raw_backlog.png`).
+4. **Access-threshold sweep** (−5, 0, +5 dB) for exp2 (`fig3b_coverage_threshold_sweep.png`) and exp3
+   (`fig4c_outage_causes.png`), same seeds and geometry, only the threshold changes.
+5. **Outage causes** in exp3, mutually exclusive and checked in order: no coverage (no feasible tier,
+   or assigned-tier SINR below the access threshold), random-access failure (covered but gave up after
+   10 attempts), latency over the 1 s limit.
 
 ## Experiment-specific choices
 
@@ -107,20 +134,20 @@ the section below.
 
 | Metric | Value |
 |---|---|
-| Exp 1 SG degree peak | 8.132 at 4 drones/km²; 6.048 at 250/km² (25.6% below peak) |
-| Exp 1 distance rule | r0 = 150.1 m; degree 4.293 → 22.329 |
-| Exp 2 TN alone | 0.362 at hub, peaks 0.43 at 1 km, < 0.01 from 2.5 km |
-| Exp 2 HAPS alone ideal / σ_b = 3° | 0.316 / 0.158 (mean over distance) |
-| Exp 2 satellite alone | 0.158 |
-| Exp 2 hybrid at 10 km ideal / σ_b = 3° / no HAPS | 0.408 / 0.282 / 0.158 |
-| Exp 3 latency N=1→50, outage (mean over N) | TN 152.7→210.7 ms, 72.6%; HAPS 44.0→52.9 ms, 68.7%; sat 135.8→146.3 ms, 83.8%; balanced 107.8→104.3 ms, 41.7% |
-| Exp 4 coop completion at 1000 / 2000 GFLOP | 97.9% / 89.3% (solo: step at 470 GFLOP) |
-| Exp 5 median endurance | raw→sat 18.2 min, raw→HAPS 43.7 min, edge-AI 68.3 min (ceiling 74.0 min) |
+| Exp 1 SG degree peak | 8.762 at 4 drones/km²; 6.061 at 250/km² (30.8% below peak) |
+| Exp 1 distance rule | r0 = 179.0 m; degree 5.481 → 31.229 |
+| Exp 2 TN alone | 0.889 at hub, ≈ 0.89 to 3.5 km, below 0.5 from 7 km, 0.019 at 10 km |
+| Exp 2 HAPS alone ideal / σ_b = 3° | 0.954 / 0.880 (mean over distance) |
+| Exp 2 satellite alone | 0.998 |
+| Exp 2 hybrid at 10 km ideal / σ_b = 3° / no HAPS | 1.000 / 1.000 / 0.998 |
+| Exp 3 latency N=1→50, outage (mean over N) | TN 92.8→148.1 ms, 11.0%; HAPS 22.7→30.1 ms, 9.1%; sat 71.1→77.9 ms, 0.2%; balanced 86.7→41.4 ms, 0.0% |
+| Exp 3 outage causes | all "no coverage" at +5 dB; random-access failure 0.0% for every policy and threshold |
+| Exp 4 coop completion at 1000 / 2000 GFLOP | 98.2% / 91.0% (solo: step at 470 GFLOP) |
+| Exp 5 raw streaming | needs 80 Mbit/s; median achievable TN 6.53, HAPS 33.29, sat 8.61 Mbit/s; feasible for 0.0% of drones on every tier |
+| Exp 5 median endurance | raw (either tier) 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
 
-### Known sanity-check failures (not fixed, reported as found)
+### Known sanity-check failure (not fixed, reported as found)
 
-- `tn_non_increasing` (test 1): TN coverage rises from 0.362 at the hub to ~0.43 at 1 km before
-  collapsing, because base stations exist only inside the 1.5 km core and edge cells have fewer
-  co-channel interferers. A modelling consequence of the TN-deployment placeholder, not a code bug.
-- `naive_monotone_non_decreasing` (exp1 only): one dip 4.682 → 4.574 between 4 and 6 drones/km²,
-  Monte Carlo noise at low density (60-realization re-check: 4.53 ± 0.04 → 4.72 ± 0.04).
+- `naive_monotone_non_decreasing` (exp1 only): one dip 6.062 → 5.879 between 4 and 6 drones/km²,
+  Monte Carlo noise at low density (only 15 realizations per density). The same dip appeared in the
+  previous run with the same seeds and geometry; a 60-realization re-check showed the step increasing.
