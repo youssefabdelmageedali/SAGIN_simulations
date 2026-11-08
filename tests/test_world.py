@@ -91,3 +91,41 @@ def test_iot_load_raises_access_delay():
     quiet = WORLD.random_access(tier, det, rng)
     busy = SAGINWorld(replace(WORLD.p, iot_ra_load=1.0)).random_access(tier, det, rng)
     assert np.nanmean(np.where(np.isfinite(busy), busy, np.nan)) > np.nanmean(np.where(np.isfinite(quiet), quiet, np.nan))
+
+
+TERMINALS = [("drone", WORLD), ("sensor", WORLD.ground_sensor())]
+CURVE_DIST = exp2_coverage.DIST_KM
+
+
+def _binomial_tol(p, n):
+    return 4.5 * np.sqrt(np.maximum(p * (1 - p), 1e-4) * 2 / n) + 0.005
+
+
+def test_tn_coverage_maximal_at_hub():
+    n = 1500
+    for name, w in TERMINALS:
+        tn = exp2_coverage.coverage(w, 16, CURVE_DIST, n)["tn"]
+        assert tn[0] >= tn.max() - _binomial_tol(tn.max(), n), (name, tn)
+
+
+def test_coverage_independent_of_region_size():
+    n = 2000
+    for name, w in TERMINALS:
+        a = exp2_coverage.coverage(w, 17, CURVE_DIST, n)
+        b = exp2_coverage.coverage(SAGINWorld(replace(w.p, region_km=60.0)), 17, CURVE_DIST, n)
+        for k in exp2_coverage.CURVES:
+            assert np.all(np.abs(a[k] - b[k]) <= _binomial_tol((a[k] + b[k]) / 2, n)), (name, k, a[k], b[k])
+
+
+def test_haps_coverage_non_increasing_from_nadir():
+    nadirs = WORLD.haps_layout()[:, :2]
+    n = 1500
+    for name, w in TERMINALS:
+        # every curve point lies in the hub HAPS cell, so distance from the hub = distance from the nearest nadir
+        for ang in np.linspace(0, 2 * np.pi, 13):
+            pts = CURVE_DIST[:, None] * 1e3 * np.array([np.cos(ang), np.sin(ang)])
+            nearest = np.hypot(pts[:, None, 0] - nadirs[None, :, 0], pts[:, None, 1] - nadirs[None, :, 1]).min(1)
+            assert np.allclose(nearest, CURVE_DIST * 1e3)
+        cov = exp2_coverage.coverage(w, 18, CURVE_DIST, n)
+        for k in ["haps_ideal", "haps_err"]:
+            assert np.all(np.diff(cov[k]) <= _binomial_tol(cov[k][1:], n)), (name, k, cov[k])

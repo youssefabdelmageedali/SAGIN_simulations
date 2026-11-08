@@ -19,7 +19,7 @@ from sagin.world import PLACEHOLDERS, SAGINWorld
 EXPERIMENTS = {
     "exp1": ("experiments.exp1_graph", "fig2"),
     "exp2": ("experiments.exp2_coverage", "fig3"),
-    "exp2b": ("experiments.exp2b_iot_coverage", "fig3c"),
+    "exp2b": ("experiments.exp2b_iot_coverage", "fig3panelb"),
     "exp3": ("experiments.exp3_latency", "fig4"),
     "exp4": ("experiments.exp5a_compute", "fig5a"),
     "exp5": ("experiments.exp5b_energy", "fig5b"),

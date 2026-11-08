@@ -20,7 +20,7 @@ K_BOLTZMANN = 1.380649e-23  # J/K
 @dataclass(frozen=True)
 class Params:
     # --- geometry -----------------------------------------------------------
-    region_km: float = 10.0  # square region side, hub at the centre
+    region_km: float = 40.0  # square region side, hub at the centre; large enough that no curve to 10 km sees the edge
     h_drone_m: float = 100.0
     h_bs_m: float = 25.0
     h_iot_m: float = 1.5
@@ -59,11 +59,17 @@ class Params:
     sidelobe_db: float = -30.0  # sidelobe floor relative to boresight (HAPS and sat)
     sigma_b_deg: float = 3.0  # pointing-error std used in the "with error" cases
     # --- deployments --------------------------------------------------------
-    # TN base stations: homogeneous PPP over the whole region; 0.2 /km^2 gives an
-    # equivalent cell radius 1/sqrt(pi*lambda) = 1.26 km
-    tn_density_km2: float = 0.2
+    # TN base stations: one BS at the hub plus an inhomogeneous PPP, dense urban core around the
+    # hub and sparse rural density elsewhere in the region
+    tn_core_radius_km: float = 2.0
+    tn_core_density_km2: float = 4.0
+    tn_rural_density_km2: float = 0.05
     tn_interferer_radius_m: float = 300.0  # co-channel IoT uplink user around each other BS
     n_haps: int = 3
+    # deterministic HAPS layout: one above the hub, the others on a ring of this radius at equal
+    # angles; each HAPS serves a cell of haps_cell_radius_km around its nadir
+    haps_spacing_km: float = 20.0
+    haps_cell_radius_km: float = 10.0
     n_sat: int = 720
     sat_min_elev_deg: float = 10.0  # TR 36.763 Table 6.1-1
     n_sat_cochannel: int = 6
@@ -117,9 +123,13 @@ PLACEHOLDERS = {
     "shadow_std_db": "shadowed-Rician approximation for HAPS/sat",
     "haps_beamwidth_deg": "HAPS spot-beam 3 dB width",
     "sidelobe_db": "sidelobe floor for HAPS and satellite beams",
-    "tn_density_km2": "TN base-station density (equivalent cell radius 1.26 km)",
+    "tn_core_radius_km": "TN urban-core radius around the hub",
+    "tn_core_density_km2": "TN urban-core BS density (inter-site distance ~0.5 km)",
+    "tn_rural_density_km2": "TN rural BS density outside the core (inter-site distance ~4.5 km)",
+    "haps_spacing_km": "HAPS ring radius around the hub HAPS",
+    "haps_cell_radius_km": "HAPS service-cell radius (co-channel users placed inside their own cell)",
     "tn_interferer_radius_m": "co-channel uplink user placement around other BSs",
-    "n_haps": "number of HAPS over the region",
+    "n_haps": "number of HAPS (one above the hub, the rest on a ring)",
     "n_sat": "LEO constellation size for the spherical BPP",
     "n_sat_cochannel": "co-channel users in other satellite beams",
     "pcp_mean_offspring": "Thomas-process mean cluster size",
@@ -166,8 +176,8 @@ class Deployment:
     """One realization of the infrastructure point processes."""
     bs_xy: np.ndarray  # (K, 2) TN base stations (PPP over the region)
     iot_xy: np.ndarray  # (K, 2) one co-channel uplink IoT user per BS
-    haps_xyz: np.ndarray  # (H, 3) HAPS (BPP over the region)
-    haps_intf_xy: np.ndarray  # (H, 2) one co-channel user per HAPS
+    haps_xyz: np.ndarray  # (H, 3) HAPS (fixed layout, haps_layout)
+    haps_intf_xy: np.ndarray  # (H, 2) one co-channel user per HAPS, inside that HAPS's cell
     sat_cos_psi: float  # geocentric angle cosine of the highest-elevation satellite
 
 
@@ -272,15 +282,29 @@ class SAGINWorld:
             d = np.minimum(d, side_m - d)
         return np.hypot(d[..., 0], d[..., 1])
 
+    def haps_layout(self):
+        """Fixed HAPS positions (H, 3): one above the hub, the others on a ring of radius
+        haps_spacing_km at equal angles. Independent of the region size."""
+        p = self.p
+        k = p.n_haps - 1
+        ang = 2 * np.pi * np.arange(k) / max(k, 1)
+        ring = p.haps_spacing_km * 1e3 * np.column_stack([np.cos(ang), np.sin(ang)])
+        xy = np.vstack([np.zeros((1, 2)), ring])
+        return np.column_stack([xy, np.full(p.n_haps, p.h_haps_m)])
+
     def deploy(self, rng):
-        """Draw one realization of TN (PPP), HAPS (BPP) and satellites (spherical BPP)."""
+        """Draw one realization of TN (hub BS + inhomogeneous PPP), the HAPS co-channel users
+        and the satellites (spherical BPP). The HAPS themselves are at fixed positions."""
         p = self.p
         half = p.region_km * 1e3 / 2
-        n_bs = rng.poisson(p.tn_density_km2 * p.region_km ** 2)
-        bs = rng.uniform(-half, half, (n_bs, 2))
-        iot = bs + self._uniform_disk(n_bs, p.tn_interferer_radius_m, rng)
-        haps = np.column_stack([rng.uniform(-half, half, (p.n_haps, 2)), np.full(p.n_haps, p.h_haps_m)])
-        haps_intf = rng.uniform(-half, half, (p.n_haps, 2))
+        r_core = p.tn_core_radius_km * 1e3
+        core = self._uniform_disk(rng.poisson(p.tn_core_density_km2 * np.pi * p.tn_core_radius_km ** 2), r_core, rng)
+        rural = rng.uniform(-half, half, (rng.poisson(p.tn_rural_density_km2 * p.region_km ** 2), 2))
+        rural = rural[np.hypot(rural[:, 0], rural[:, 1]) > r_core]  # rural density only outside the core
+        bs = np.vstack([np.zeros((1, 2)), core, rural])
+        iot = bs + self._uniform_disk(len(bs), p.tn_interferer_radius_m, rng)
+        haps = self.haps_layout()
+        haps_intf = haps[:, :2] + self._uniform_disk(p.n_haps, p.haps_cell_radius_km * 1e3, rng)
         # n_sat points uniform on the orbital sphere: cos(psi) ~ U(-1, 1) each; keep the max
         cos_psi = 2 * rng.uniform() ** (1.0 / p.n_sat) - 1
         return Deployment(bs, iot, haps, haps_intf, float(cos_psi))

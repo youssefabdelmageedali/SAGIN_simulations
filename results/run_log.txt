@@ -1,139 +1,151 @@
-===== exp1 (fig2) 59s
+===== exp1 (fig2) 60s
 SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
 SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
 Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
 check sg_peaks_before_max_density: True
 check naive_monotone_non_decreasing: False
 
-===== exp2 (fig3) 21s
-tn           : 0.889 at 0 km -> 0.019 at 10 km (mean over distance 0.615)
-haps_ideal   : 0.910 at 0 km -> 1.000 at 10 km (mean over distance 0.954)
-haps_err     : 0.818 at 0 km -> 0.945 at 10 km (mean over distance 0.880)
-sat          : 0.996 at 0 km -> 0.996 at 10 km (mean over distance 0.996)
-hybrid_ideal : 1.000 at 0 km -> 1.000 at 10 km (mean over distance 1.000)
-hybrid_err   : 1.000 at 0 km -> 1.000 at 10 km (mean over distance 1.000)
-no_haps      : 0.999 at 0 km -> 0.996 at 10 km (mean over distance 0.998)
-TN coverage first below 0.5 at 7.0 km, below 0.01 at None km
-HAPS tier gain at 10 km: hybrid(ideal) 1.000 vs TN+sat only 0.996
-check tn_non_increasing: True
-check hybrid_ge_every_tier: True
-check haps_err_le_ideal: True
-access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):
-  tn            -5 dB: 0.971/0.941/0.430 | +0 dB: 0.945/0.892/0.161 | +5 dB: 0.889/0.810/0.019
-  haps_ideal    -5 dB: 0.989/0.995/1.000 | +0 dB: 0.963/0.980/1.000 | +5 dB: 0.910/0.954/1.000
-  haps_err      -5 dB: 0.948/0.968/0.987 | +0 dB: 0.896/0.935/0.973 | +5 dB: 0.818/0.879/0.945
-  sat           -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 0.996/0.996/0.996
-  hybrid_ideal  -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
-  hybrid_err    -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
-  no_haps       -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 0.999/0.999/0.996
+===== exp2 (fig3) 95s
+drones: coverage at 0 / 2 / 5 / 10 km (seed mean)
+  tn           : 0.994 / 0.812 / 0.656 / 0.850   (mean over 0-10 km 0.728)
+  haps_ideal   : 1.000 / 1.000 / 1.000 / 0.998   (mean over 0-10 km 1.000)
+  haps_err     : 0.957 / 0.955 / 0.954 / 0.945   (mean over 0-10 km 0.953)
+  sat          : 0.995 / 0.994 / 0.995 / 0.995   (mean over 0-10 km 0.996)
+  hybrid_ideal : 1.000 / 1.000 / 1.000 / 1.000   (mean over 0-10 km 1.000)
+  hybrid_err   : 1.000 / 1.000 / 1.000 / 1.000   (mean over 0-10 km 1.000)
+  no_haps      : 1.000 / 0.999 / 0.998 / 0.999   (mean over 0-10 km 0.999)
+  TN coverage first below 0.5 at 2.5 km
+  at 10 km: hybrid(ideal) 1.000, hybrid(σ_b) 1.000 vs TN+sat only 0.999
+  serving satellite: elevation median 53.7 deg, 5th pct 31.3, min 11.9; none above 10 deg in 0.000% of realizations
+  check tn_non_increasing: False
+  check tn_max_at_hub: True
+  check hybrid_ge_every_tier: True
+  check no_haps_is_max_of_tn_sat_per_realization: True
+  check haps_err_le_ideal: True
+  check haps_non_increasing_from_nadir: True
+  check sat_flat: True
+  access-threshold sweep, coverage at 0 / 2 / 5 / 10 km:
+    tn            -5 dB: 0.999/0.940/0.757/0.964 | +0 dB: 0.998/0.893/0.722/0.929 | +5 dB: 0.994/0.812/0.656/0.850
+    haps_ideal    -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000/0.999 | +5 dB: 1.000/1.000/1.000/0.998
+    haps_err      -5 dB: 0.991/0.991/0.991/0.988 | +0 dB: 0.979/0.978/0.977/0.971 | +5 dB: 0.957/0.955/0.954/0.945
+    sat           -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000/1.000 | +5 dB: 0.995/0.994/0.995/0.995
+    hybrid_ideal  -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000/1.000
+    hybrid_err    -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000/1.000
+    no_haps       -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000/1.000 | +5 dB: 1.000/0.999/0.998/0.999
 drone antenna-gain sweep (Tx 30 dBm), coverage at 10 km:
-     0 dBi: sat 0.743, no_haps 0.743, hybrid_ideal 0.999, haps_ideal 0.992, tn 0.000
-     3 dBi: sat 0.901, no_haps 0.901, hybrid_ideal 1.000, haps_ideal 0.999, tn 0.000
-    10 dBi: sat 0.996, no_haps 0.996, hybrid_ideal 1.000, haps_ideal 1.000, tn 0.019
+     0 dBi: sat 0.741, no_haps 0.877, hybrid_ideal 0.998, haps_ideal 0.987, tn 0.520
+     3 dBi: sat 0.905, no_haps 0.965, hybrid_ideal 1.000, haps_ideal 0.997, tn 0.633
+    10 dBi: sat 0.995, no_haps 0.999, hybrid_ideal 1.000, haps_ideal 0.998, tn 0.850
 
-===== exp2b (fig3c) 11s
+===== exp2b (fig3panelb) 0s
 ground IoT sensor terminal: height 0 m, Tx 23 dBm, antenna gain 0 dBi (all other parameters as exp2)
-tn           : 0.389 at 0 km -> 0.000 at 10 km (mean over distance 0.221)
-haps_ideal   : 0.712 at 0 km -> 0.762 at 10 km (mean over distance 0.742)
-haps_err     : 0.451 at 0 km -> 0.480 at 10 km (mean over distance 0.471)
-sat          : 0.180 at 0 km -> 0.174 at 10 km (mean over distance 0.175)
-hybrid_ideal : 0.859 at 0 km -> 0.806 at 10 km (mean over distance 0.839)
-hybrid_err   : 0.730 at 0 km -> 0.572 at 10 km (mean over distance 0.663)
-no_haps      : 0.500 at 0 km -> 0.174 at 10 km (mean over distance 0.357)
-TN coverage first below 0.5 at 0.0 km, below 0.01 at 7.0 km
-HAPS tier gain at 10 km: hybrid(ideal) 0.806 vs TN+sat only 0.174
-check tn_non_increasing: False
-check hybrid_ge_every_tier: True
-check haps_err_le_ideal: True
-access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):
-  tn            -5 dB: 0.739/0.625/0.000 | +0 dB: 0.566/0.448/0.000 | +5 dB: 0.389/0.287/0.000
-  haps_ideal    -5 dB: 0.987/0.993/0.999 | +0 dB: 0.934/0.953/0.974 | +5 dB: 0.712/0.749/0.762
-  haps_err      -5 dB: 0.874/0.888/0.897 | +0 dB: 0.728/0.756/0.770 | +5 dB: 0.451/0.480/0.480
-  sat           -5 dB: 0.920/0.923/0.917 | +0 dB: 0.593/0.601/0.593 | +5 dB: 0.180/0.177/0.174
-  hybrid_ideal  -5 dB: 1.000/1.000/1.000 | +0 dB: 0.988/0.990/0.990 | +5 dB: 0.859/0.855/0.806
-  hybrid_err    -5 dB: 0.998/0.997/0.991 | +0 dB: 0.954/0.946/0.907 | +5 dB: 0.730/0.695/0.572
-  no_haps       -5 dB: 0.981/0.971/0.917 | +0 dB: 0.824/0.785/0.593 | +5 dB: 0.500/0.413/0.174
+ground IoT sensors: coverage at 0 / 2 / 5 / 10 km (seed mean)
+  tn           : 0.995 / 0.321 / 0.192 / 0.283   (mean over 0-10 km 0.274)
+  haps_ideal   : 0.809 / 0.808 / 0.791 / 0.732   (mean over 0-10 km 0.782)
+  haps_err     : 0.526 / 0.521 / 0.506 / 0.455   (mean over 0-10 km 0.499)
+  sat          : 0.176 / 0.175 / 0.171 / 0.172   (mean over 0-10 km 0.173)
+  hybrid_ideal : 0.999 / 0.894 / 0.861 / 0.842   (mean over 0-10 km 0.869)
+  hybrid_err   : 0.997 / 0.727 / 0.668 / 0.677   (mean over 0-10 km 0.698)
+  no_haps      : 0.996 / 0.438 / 0.331 / 0.406   (mean over 0-10 km 0.399)
+  TN coverage first below 0.5 at 0.5 km
+  at 10 km: hybrid(ideal) 0.842, hybrid(σ_b) 0.677 vs TN+sat only 0.406
+  serving satellite: elevation median 53.7 deg, 5th pct 31.3, min 11.9; none above 10 deg in 0.000% of realizations
+  check tn_non_increasing: False
+  check tn_max_at_hub: True
+  check hybrid_ge_every_tier: True
+  check no_haps_is_max_of_tn_sat_per_realization: True
+  check haps_err_le_ideal: True
+  check haps_non_increasing_from_nadir: True
+  check sat_flat: True
+  access-threshold sweep, coverage at 0 / 2 / 5 / 10 km:
+    tn            -5 dB: 1.000/0.637/0.480/0.634 | +0 dB: 0.998/0.477/0.327/0.445 | +5 dB: 0.995/0.321/0.192/0.283
+    haps_ideal    -5 dB: 1.000/0.999/1.000/0.999 | +0 dB: 0.979/0.983/0.980/0.968 | +5 dB: 0.809/0.808/0.791/0.732
+    haps_err      -5 dB: 0.908/0.902/0.903/0.890 | +0 dB: 0.787/0.788/0.783/0.752 | +5 dB: 0.526/0.521/0.506/0.455
+    sat           -5 dB: 0.921/0.915/0.916/0.920 | +0 dB: 0.594/0.594/0.590/0.589 | +5 dB: 0.176/0.175/0.171/0.172
+    hybrid_ideal  -5 dB: 1.000/1.000/1.000/1.000 | +0 dB: 1.000/0.996/0.995/0.993 | +5 dB: 0.999/0.894/0.861/0.842
+    hybrid_err    -5 dB: 1.000/0.997/0.996/0.996 | +0 dB: 1.000/0.953/0.942/0.944 | +5 dB: 0.997/0.727/0.668/0.677
+    no_haps       -5 dB: 1.000/0.970/0.956/0.971 | +0 dB: 0.999/0.785/0.723/0.774 | +5 dB: 0.996/0.438/0.331/0.406
 
-===== exp3 (fig4) 21s
+===== exp3 (fig4) 49s
 drone-only (no IoT load), nominal bandwidths and threshold:
-  all_tn   : 92.8 -> 146.5 ms (N=1..50), outage mean 11.2% (no_coverage 11.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 10.9%
-  all_haps : 22.7 -> 30.3 ms (N=1..50), outage mean 8.8% (no_coverage 8.8%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.0%
-  all_sat  : 101.2 -> 108.1 ms (N=1..50), outage mean 0.4% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
-  tn_first : 86.8 -> 43.3 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  balanced : 27.8 -> 34.7 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  all_tn    at N=50: tn share 100% RA-fail 0.00% access 62.2 ms
-  all_haps  at N=50: haps share 100% RA-fail 0.00% access 13.5 ms
-  all_sat   at N=50: sat share 100% RA-fail 0.00% access 13.4 ms
-  tn_first  at N=50: tn share 26% RA-fail 0.00% access 15.8 ms; haps share 67% RA-fail 0.00% access 11.0 ms; sat share 7% RA-fail 0.00% access 7.9 ms
-  balanced  at N=50: tn share 6% RA-fail 0.00% access 10.8 ms; haps share 90% RA-fail 0.00% access 12.7 ms; sat share 5% RA-fail 0.00% access 8.0 ms
+  all_tn   : 94.3 -> 152.0 ms (N=1..50), outage mean 13.3% (no_coverage 13.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 13.7%
+  all_haps : 19.5 -> 26.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 102.6 -> 107.8 ms (N=1..50), outage mean 0.5% (no_coverage 0.5%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
+  tn_first : 84.5 -> 35.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 19.5 -> 26.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_tn    at N=50: tn share 100% RA-fail 0.00% access 63.4 ms
+  all_haps  at N=50: haps share 100% RA-fail 0.00% access 13.3 ms
+  all_sat   at N=50: sat share 100% RA-fail 0.00% access 13.2 ms
+  tn_first  at N=50: tn share 26% RA-fail 0.00% access 16.0 ms; haps share 74% RA-fail 0.00% access 11.4 ms
+  balanced  at N=50: tn share 1% RA-fail 0.00% access 6.4 ms; haps share 99% RA-fail 0.00% access 13.4 ms
 equal 5 MHz bandwidth on every tier:
-  all_tn   : 24.8 -> 79.6 ms (N=1..50), outage mean 12.0% (no_coverage 12.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 12.2%
-  all_haps : 22.7 -> 30.5 ms (N=1..50), outage mean 8.8% (no_coverage 8.8%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.5%
-  all_sat  : 36.4 -> 43.4 ms (N=1..50), outage mean 8.2% (no_coverage 8.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 8.2%
-  tn_first : 24.8 -> 28.6 ms (N=1..50), outage mean 0.1% (no_coverage 0.1%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.1%
-  balanced : 20.5 -> 26.8 ms (N=1..50), outage mean 0.1% (no_coverage 0.1%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.1%
+  all_tn   : 24.0 -> 81.6 ms (N=1..50), outage mean 13.3% (no_coverage 13.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 13.7%
+  all_haps : 19.5 -> 26.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 36.6 -> 43.0 ms (N=1..50), outage mean 8.6% (no_coverage 8.6%, ra_failure 0.0%, over_limit 0.0%), at N=50 8.3%
+  tn_first : 23.3 -> 24.8 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 18.3 -> 24.2 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 access threshold -5 dB:
-  all_tn   : 116.4 -> 171.3 ms (N=1..50), outage mean 3.6% (no_coverage 3.0%, ra_failure 0.0%, over_limit 0.6%), at N=50 4.3%
-  all_haps : 29.2 -> 36.9 ms (N=1..50), outage mean 1.0% (no_coverage 1.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 1.1%
-  all_sat  : 101.6 -> 108.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  tn_first : 114.0 -> 44.6 ms (N=1..50), outage mean 0.2% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.2%), at N=50 0.0%
-  balanced : 27.0 -> 34.3 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_tn   : 124.0 -> 184.9 ms (N=1..50), outage mean 4.4% (no_coverage 3.7%, ra_failure 0.0%, over_limit 0.7%), at N=50 5.2%
+  all_haps : 19.5 -> 26.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 104.3 -> 108.1 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  tn_first : 120.0 -> 35.6 ms (N=1..50), outage mean 0.2% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.2%), at N=50 0.0%
+  balanced : 19.5 -> 26.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 access threshold +0 dB:
-  all_tn   : 102.9 -> 160.9 ms (N=1..50), outage mean 5.9% (no_coverage 5.9%, ra_failure 0.0%, over_limit 0.0%), at N=50 5.9%
-  all_haps : 25.2 -> 33.0 ms (N=1..50), outage mean 3.7% (no_coverage 3.7%, ra_failure 0.0%, over_limit 0.0%), at N=50 3.7%
-  all_sat  : 101.6 -> 108.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  tn_first : 98.8 -> 42.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  balanced : 27.0 -> 33.9 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_tn   : 111.8 -> 167.8 ms (N=1..50), outage mean 6.9% (no_coverage 6.9%, ra_failure 0.0%, over_limit 0.0%), at N=50 7.3%
+  all_haps : 19.5 -> 26.3 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 103.4 -> 108.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  tn_first : 105.9 -> 35.7 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 19.5 -> 26.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 access threshold +5 dB:
-  all_tn   : 92.8 -> 146.5 ms (N=1..50), outage mean 11.2% (no_coverage 11.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 10.9%
-  all_haps : 22.7 -> 30.3 ms (N=1..50), outage mean 8.8% (no_coverage 8.8%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.0%
-  all_sat  : 101.2 -> 108.1 ms (N=1..50), outage mean 0.4% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
-  tn_first : 86.8 -> 43.3 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  balanced : 27.8 -> 34.7 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_tn   : 94.3 -> 152.0 ms (N=1..50), outage mean 13.3% (no_coverage 13.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 13.7%
+  all_haps : 19.5 -> 26.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 102.6 -> 107.8 ms (N=1..50), outage mean 0.5% (no_coverage 0.5%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
+  tn_first : 84.5 -> 35.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 19.5 -> 26.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
 IoT load none (0 preambles/resource/opportunity):
-  all_tn   : 92.8 -> 146.5 ms (N=1..50), outage mean 11.2% (no_coverage 11.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 10.9%
-  all_haps : 22.7 -> 30.3 ms (N=1..50), outage mean 8.8% (no_coverage 8.8%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.0%
-  all_sat  : 101.2 -> 108.1 ms (N=1..50), outage mean 0.4% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
-  tn_first : 86.8 -> 43.3 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  balanced : 27.8 -> 34.7 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-    all_tn    at N=50: tn share 100% RA-fail 0.00% access 62.2 ms
-    all_haps  at N=50: haps share 100% RA-fail 0.00% access 13.5 ms
-    all_sat   at N=50: sat share 100% RA-fail 0.00% access 13.4 ms
-    tn_first  at N=50: tn share 26% RA-fail 0.00% access 15.8 ms; haps share 67% RA-fail 0.00% access 11.0 ms; sat share 7% RA-fail 0.00% access 7.9 ms
-    balanced  at N=50: tn share 6% RA-fail 0.00% access 10.8 ms; haps share 90% RA-fail 0.00% access 12.7 ms; sat share 5% RA-fail 0.00% access 8.0 ms
+  all_tn   : 94.3 -> 152.0 ms (N=1..50), outage mean 13.3% (no_coverage 13.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 13.7%
+  all_haps : 19.5 -> 26.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 102.6 -> 107.8 ms (N=1..50), outage mean 0.5% (no_coverage 0.5%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
+  tn_first : 84.5 -> 35.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 19.5 -> 26.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+    all_tn    at N=50: tn share 100% RA-fail 0.00% access 63.4 ms
+    all_haps  at N=50: haps share 100% RA-fail 0.00% access 13.3 ms
+    all_sat   at N=50: sat share 100% RA-fail 0.00% access 13.2 ms
+    tn_first  at N=50: tn share 26% RA-fail 0.00% access 16.0 ms; haps share 74% RA-fail 0.00% access 11.4 ms
+    balanced  at N=50: tn share 1% RA-fail 0.00% access 6.4 ms; haps share 99% RA-fail 0.00% access 13.4 ms
 IoT load low (0.1 preambles/resource/opportunity):
-  all_tn   : 93.8 -> 156.8 ms (N=1..50), outage mean 10.3% (no_coverage 10.3%, ra_failure 0.0%, over_limit 0.0%), at N=50 10.3%
-  all_haps : 23.7 -> 32.7 ms (N=1..50), outage mean 9.2% (no_coverage 9.2%, ra_failure 0.0%, over_limit 0.0%), at N=50 8.8%
-  all_sat  : 102.2 -> 110.1 ms (N=1..50), outage mean 0.4% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
-  tn_first : 87.6 -> 45.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-  balanced : 28.8 -> 36.4 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
-    all_tn    at N=50: tn share 100% RA-fail 0.00% access 72.4 ms
-    all_haps  at N=50: haps share 100% RA-fail 0.00% access 15.9 ms
-    all_sat   at N=50: sat share 100% RA-fail 0.00% access 15.5 ms
-    tn_first  at N=50: tn share 26% RA-fail 0.00% access 18.7 ms; haps share 68% RA-fail 0.00% access 13.0 ms; sat share 6% RA-fail 0.00% access 8.8 ms
-    balanced  at N=50: tn share 7% RA-fail 0.00% access 11.7 ms; haps share 89% RA-fail 0.00% access 14.5 ms; sat share 5% RA-fail 0.00% access 8.9 ms
+  all_tn   : 95.6 -> 162.5 ms (N=1..50), outage mean 13.4% (no_coverage 13.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 13.7%
+  all_haps : 20.7 -> 28.5 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  all_sat  : 103.6 -> 109.7 ms (N=1..50), outage mean 0.5% (no_coverage 0.5%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.5%
+  tn_first : 85.6 -> 37.6 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+  balanced : 21.0 -> 28.9 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
+    all_tn    at N=50: tn share 100% RA-fail 0.00% access 73.9 ms
+    all_haps  at N=50: haps share 100% RA-fail 0.00% access 15.4 ms
+    all_sat   at N=50: sat share 100% RA-fail 0.00% access 15.6 ms
+    tn_first  at N=50: tn share 26% RA-fail 0.00% access 18.3 ms; haps share 74% RA-fail 0.00% access 13.3 ms
+    balanced  at N=50: tn share 2% RA-fail 0.00% access 8.2 ms; haps share 98% RA-fail 0.00% access 15.4 ms; sat share 0% RA-fail 0.00% access 8.5 ms
 IoT load medium (0.5 preambles/resource/opportunity):
-  all_tn   : 102.2 -> 219.6 ms (N=1..50), outage mean 11.1% (no_coverage 10.7%, ra_failure 0.1%, over_limit 0.3%), at N=50 12.0%
-  all_haps : 35.3 -> 52.3 ms (N=1..50), outage mean 9.2% (no_coverage 9.1%, ra_failure 0.0%, over_limit 0.0%), at N=50 9.4%
-  all_sat  : 112.5 -> 128.2 ms (N=1..50), outage mean 0.5% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.6%
-  tn_first : 99.8 -> 64.3 ms (N=1..50), outage mean 0.1% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.1%), at N=50 0.1%
-  balanced : 39.1 -> 57.8 ms (N=1..50), outage mean 0.1% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.1%
-    all_tn    at N=50: tn share 100% RA-fail 0.32% access 144.0 ms
-    all_haps  at N=50: haps share 100% RA-fail 0.00% access 36.0 ms
-    all_sat   at N=50: sat share 100% RA-fail 0.04% access 34.7 ms
-    tn_first  at N=50: tn share 26% RA-fail 0.02% access 44.0 ms; haps share 67% RA-fail 0.01% access 30.3 ms; sat share 7% RA-fail 0.00% access 22.7 ms
-    balanced  at N=50: tn share 10% RA-fail 0.12% access 27.2 ms; haps share 75% RA-fail 0.02% access 31.1 ms; sat share 15% RA-fail 0.03% access 20.5 ms
+  all_tn   : 105.5 -> 221.4 ms (N=1..50), outage mean 14.0% (no_coverage 13.6%, ra_failure 0.1%, over_limit 0.3%), at N=50 14.4%
+  all_haps : 29.5 -> 48.6 ms (N=1..50), outage mean 0.1% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.1%
+  all_sat  : 118.7 -> 128.9 ms (N=1..50), outage mean 0.5% (no_coverage 0.4%, ra_failure 0.0%, over_limit 0.1%), at N=50 0.6%
+  tn_first : 96.0 -> 55.2 ms (N=1..50), outage mean 0.1% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.1%), at N=50 0.1%
+  balanced : 29.9 -> 52.2 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.1%
+    all_tn    at N=50: tn share 100% RA-fail 0.34% access 142.8 ms
+    all_haps  at N=50: haps share 100% RA-fail 0.03% access 36.2 ms
+    all_sat   at N=50: sat share 100% RA-fail 0.02% access 35.7 ms
+    tn_first  at N=50: tn share 26% RA-fail 0.03% access 42.8 ms; haps share 74% RA-fail 0.03% access 29.9 ms
+    balanced  at N=50: tn share 10% RA-fail 0.04% access 26.0 ms; haps share 80% RA-fail 0.04% access 32.1 ms; sat share 11% RA-fail 0.00% access 19.0 ms
 IoT load high (1 preambles/resource/opportunity):
-  all_tn   : 139.7 -> 303.3 ms (N=1..50), outage mean 16.3% (no_coverage 10.8%, ra_failure 2.9%, over_limit 2.5%), at N=50 21.1%
-  all_haps : 79.5 -> 110.8 ms (N=1..50), outage mean 11.4% (no_coverage 9.3%, ra_failure 1.3%, over_limit 0.8%), at N=50 12.4%
-  all_sat  : 146.5 -> 183.6 ms (N=1..50), outage mean 3.0% (no_coverage 0.4%, ra_failure 1.4%, over_limit 1.2%), at N=50 4.0%
-  tn_first : 139.3 -> 120.2 ms (N=1..50), outage mean 2.7% (no_coverage 0.0%, ra_failure 1.5%, over_limit 1.2%), at N=50 2.7%
-  balanced : 71.1 -> 114.8 ms (N=1..50), outage mean 2.2% (no_coverage 0.0%, ra_failure 1.3%, over_limit 0.9%), at N=50 2.4%
-    all_tn    at N=50: tn share 100% RA-fail 5.95% access 261.3 ms
-    all_haps  at N=50: haps share 100% RA-fail 1.90% access 107.8 ms
-    all_sat   at N=50: sat share 100% RA-fail 1.86% access 106.8 ms
-    tn_first  at N=50: tn share 26% RA-fail 1.95% access 126.1 ms; haps share 67% RA-fail 1.43% access 93.8 ms; sat share 7% RA-fail 1.18% access 76.0 ms
-    balanced  at N=50: tn share 9% RA-fail 1.59% access 80.9 ms; haps share 60% RA-fail 1.37% access 90.7 ms; sat share 31% RA-fail 1.43% access 79.8 ms
+  all_tn   : 147.3 -> 310.5 ms (N=1..50), outage mean 19.1% (no_coverage 13.6%, ra_failure 3.0%, over_limit 2.5%), at N=50 23.2%
+  all_haps : 82.8 -> 105.6 ms (N=1..50), outage mean 2.2% (no_coverage 0.0%, ra_failure 1.3%, over_limit 0.9%), at N=50 2.7%
+  all_sat  : 148.6 -> 184.4 ms (N=1..50), outage mean 3.2% (no_coverage 0.4%, ra_failure 1.4%, over_limit 1.4%), at N=50 3.8%
+  tn_first : 130.8 -> 114.1 ms (N=1..50), outage mean 2.8% (no_coverage 0.0%, ra_failure 1.6%, over_limit 1.2%), at N=50 3.0%
+  balanced : 76.3 -> 110.4 ms (N=1..50), outage mean 2.0% (no_coverage 0.0%, ra_failure 1.2%, over_limit 0.8%), at N=50 2.3%
+    all_tn    at N=50: tn share 100% RA-fail 6.11% access 267.1 ms
+    all_haps  at N=50: haps share 100% RA-fail 1.65% access 103.8 ms
+    all_sat   at N=50: sat share 100% RA-fail 1.73% access 107.8 ms
+    tn_first  at N=50: tn share 26% RA-fail 2.34% access 119.9 ms; haps share 74% RA-fail 1.59% access 98.5 ms
+    balanced  at N=50: tn share 9% RA-fail 1.11% access 79.9 ms; haps share 62% RA-fail 1.46% access 90.2 ms; sat share 29% RA-fail 1.18% access 78.2 ms
 check all_tn_latency_non_decreasing: True
 
 ===== exp4 (fig5a) 0s
@@ -143,14 +155,14 @@ mean SG out-degree 9.75, mean helpers used 4.70
 check solo_exact_step: True
 check coop_ge_solo: True
 
-===== exp5 (fig5b) 1s
+===== exp5 (fig5b) 2s
 raw streaming needs 80.0 Mbit/s (800 Mbit every 10 s); edge-AI report needs 2.0 kbit/s
-  TN        achievable rate median 6.53 Mbit/s (95th pct 13.46); raw feasible for 0.0% of drones; median fraction of raw delivered 8.2%; median backlog after 80 min 352.6 Gbit; report feasible for 99.8%
-  HAPS      achievable rate median 33.29 Mbit/s (95th pct 47.55); raw feasible for 0.0% of drones; median fraction of raw delivered 41.6%; median backlog after 80 min 224.2 Gbit; report feasible for 100.0%
-  satellite achievable rate median 5.85 Mbit/s (95th pct 8.19); raw feasible for 0.0% of drones; median fraction of raw delivered 7.3%; median backlog after 80 min 355.9 Gbit; report feasible for 100.0%
-raw → TN             median endurance 69.4 min (seed range 69.4..69.4); delivered 51036.6 bit/J; 0.064 captures/kJ
-raw → HAPS           median endurance 69.4 min (seed range 69.4..69.4); delivered 260114.3 bit/J; 0.325 captures/kJ
-raw → satellite      median endurance 69.4 min (seed range 69.4..69.4); delivered 45695.4 bit/J; 0.057 captures/kJ
+  TN        achievable rate median 6.06 Mbit/s (95th pct 11.85); raw feasible for 0.0% of drones; median fraction of raw delivered 7.6%; median backlog after 80 min 354.9 Gbit; report feasible for 99.9%
+  HAPS      achievable rate median 39.73 Mbit/s (95th pct 50.97); raw feasible for 0.0% of drones; median fraction of raw delivered 49.7%; median backlog after 80 min 193.3 Gbit; report feasible for 100.0%
+  satellite achievable rate median 5.87 Mbit/s (95th pct 8.26); raw feasible for 0.0% of drones; median fraction of raw delivered 7.3%; median backlog after 80 min 355.8 Gbit; report feasible for 100.0%
+raw → TN             median endurance 69.4 min (seed range 69.4..69.4); delivered 47316.7 bit/J; 0.059 captures/kJ
+raw → HAPS           median endurance 69.4 min (seed range 69.4..69.4); delivered 310401.6 bit/J; 0.388 captures/kJ
+raw → satellite      median endurance 69.4 min (seed range 69.4..69.4); delivered 45838.8 bit/J; 0.057 captures/kJ
 edge-AI → TN         median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
 edge-AI → HAPS       median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
 edge-AI → satellite  median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
