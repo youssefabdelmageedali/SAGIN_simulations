@@ -4,6 +4,102 @@ Simulation for "A Unified SAGIN Architecture for Autonomous Drone Swarms and Mas
 Central claim under test: the communication graph is **derived from SINR**
 (edge i→j iff SINR_ij > γ_th), not assumed from distance.
 
+## FROZEN MODEL (v1.0)
+
+This is the model version the paper cites (git tag `v1.0`). Every `Params` field, its value and its
+source. "Task specification" = given in the original simulation brief without a further reference;
+"assumption, no citation" = a modelling value with no citable source; **PLACEHOLDER** = not
+literature-matched, listed in `PLACEHOLDERS` (`sagin/world.py`) and in `metrics.json`. 3GPP values were
+read from the documents (3GPP FTP archive: TR 38.821 v16.2.0, TR 36.763 v17.0.0, TR 38.802 v14.2.0).
+Seeds 1–5; same seeds reproduce `results/metrics.json` bit for bit.
+
+| Parameter | Value | Source / status |
+|---|---|---|
+| `region_km` | 40 | modelling choice (edge-independence tested vs 60 km) |
+| `h_drone_m` | 100 | task specification (swarm below 1 km); assumption |
+| `h_bs_m` | 25 | **PLACEHOLDER** — typical macro mast height, not tied to a reference |
+| `h_iot_m` | 1.5 | assumption, no citation (height of co-channel IoT interferers) |
+| `h_haps_m` | 20000 | task specification (stratospheric HAPS) |
+| `h_sat_m` | 600000 | 3GPP TR 38.821 v16.2.0 Table 6.1.1.1-1 (LEO-600) |
+| `f_tn_hz` | 2e+09 | assumption, no citation |
+| `f_haps_hz` | 2e+10 | assumption, no citation |
+| `f_sat_hz` | 2e+09 | 3GPP TR 38.821 Table 6.1.1.1-1, TR 36.763 v17.0.0 Table 6.1-1 (S-band) |
+| `p_drone_access_dbm` | 30 | Lou, Belmekki, Alouini, arXiv:2310.09659, Table I (UAV) |
+| `p_drone_mesh_dbm` | 10 | Lou et al. (task specification) |
+| `p_iot_dbm` | 20 | **PLACEHOLDER** — co-channel IoT uplink interferer maximum power |
+| `ul_p0_dbm` | -90 | 3GPP TR 38.802 v14.2.0 Table 9.1.2-1 (mMTC grant-free UL baseline) |
+| `ul_alpha` | 1 | 3GPP TR 38.802 v14.2.0 Table 9.1.2-1 |
+| `terminal_tn_power_control` | False | model switch: drones fixed power (UAV), sensors power-controlled |
+| `g_drone_dbi` | 10 | Lou, Belmekki, Alouini, arXiv:2310.09659, Table I (UAV) |
+| `g_tn_dbi` | 15 | assumption, no citation (task specification: 'tuned') |
+| `g_haps_dbi` | 30 | Lou, Belmekki, Alouini, arXiv:2310.09659, Table I |
+| `g_sat_dbi` | 30 | 3GPP TR 38.821 Table 6.1.1.1-1 (Set-1 LEO-600 S-band Rx max gain) |
+| `sat_gt_dbk` | 1.1 | 3GPP TR 38.821 Table 6.1.1.1-1 (Set-1 LEO-600 S-band G/T) |
+| `sat_losses_db` | 5.3 | 3GPP TR 36.763 Table 6.2-1 (scintillation 2.2 + atmospheric 0.1 + polarization 3) |
+| `g_iot_dbi` | 0 | 3GPP TR 36.763 Table 6.1-1 (omnidirectional 0 dBi) |
+| `nakagami_m` | 2 | Lou et al. (task specification) |
+| `shadow_std_db` | 4 | **PLACEHOLDER** — shadowed-Rician approximation for HAPS/sat |
+| `noise_psd_dbm_hz` | -174 | thermal noise at 290 K |
+| `noise_figure_db` | 7 | 3GPP TR 38.821 Table 6.1.1.1-3 (handheld NF 7 dB); TR 36.763 Table 6.1-1 |
+| `b_tn_hz` | 1e+06 | assumption, no citation (task specification) |
+| `b_haps_hz` | 5e+06 | HIBS 5 MHz (Alexandre 2021, task specification) |
+| `b_sat_hz` | 1.08e+06 | 3GPP TR 36.763 Table 6.1-1 (eMTC UL up to 1080 kHz) |
+| `b_mesh_hz` | 2e+07 | assumption, no citation (task specification) |
+| `n_subch_mesh` | 8 | assumption, no citation (task specification) |
+| `haps_beamwidth_deg` | 5 | **PLACEHOLDER** — HAPS spot-beam 3 dB width |
+| `sidelobe_db` | -30 | **PLACEHOLDER** — sidelobe floor for HAPS and satellite beams |
+| `sigma_b_deg` | 3 | task specification (pointing-error case) |
+| `tn_core_radius_km` | 2 | **PLACEHOLDER** — TN urban-core radius around the hub |
+| `tn_core_density_km2` | 4 | **PLACEHOLDER** — TN urban-core BS density (inter-site distance ~0.5 km) |
+| `tn_rural_density_km2` | 0.05 | **PLACEHOLDER** — TN rural BS density outside the core (inter-site distance ~4.5 km) |
+| `tn_interferer_radius_m` | 300 | **PLACEHOLDER** — co-channel uplink user placement around other BSs |
+| `n_haps` | 3 | **PLACEHOLDER** — number of HAPS (one above the hub, the rest on a ring) |
+| `haps_spacing_km` | 20 | **PLACEHOLDER** — HAPS ring radius around the hub HAPS |
+| `haps_cell_radius_km` | 10 | **PLACEHOLDER** — HAPS service-cell radius (co-channel users placed inside their own cell) |
+| `n_sat` | 720 | **PLACEHOLDER** — LEO constellation size for the spherical BPP |
+| `sat_min_elev_deg` | 10 | 3GPP TR 36.763 Table 6.1-1 |
+| `n_sat_cochannel` | 6 | **PLACEHOLDER** — co-channel users in other satellite beams |
+| `pcp_mean_offspring` | 10 | **PLACEHOLDER** — Thomas-process mean cluster size |
+| `pcp_sigma_m` | 100 | **PLACEHOLDER** — Thomas-process cluster spread |
+| `mission_radius_km` | 2 | **PLACEHOLDER** — mission area for exp3/exp5 swarms |
+| `mission_sigma_m` | 200 | **PLACEHOLDER** — cluster spread for exp3/exp5 swarms |
+| `swarm_density_km2` | 10 | **PLACEHOLDER** — exp4 swarm density |
+| `swarm_window_km` | 3 | **PLACEHOLDER** — exp4 torus window side |
+| `gamma_th_db` | -5 | **PLACEHOLDER** — graph SINR threshold |
+| `access_th_db` | 5 | **PLACEHOLDER** — access SINR threshold |
+| `n_ra_tn` | 12 | 3GPP NB-IoT NPRACH (Lin 2016, task specification) |
+| `n_ra_haps` | 64 | **PLACEHOLDER** — HAPS random-access resources |
+| `n_ra_sat` | 64 | **PLACEHOLDER** — satellite random-access resources |
+| `t_ra_s` | 0.0064 | NPRACH format 1 (task specification) |
+| `backoff_cap_exp` | 6 | **PLACEHOLDER** — binary exponential back-off cap |
+| `ra_max_attempts` | 10 | **PLACEHOLDER** — RA attempts before giving up |
+| `latency_limit_s` | 1 | **PLACEHOLDER** — latency outage limit |
+| `tn_cap_margin` | 1 | **PLACEHOLDER** — terrestrial-first baseline TN load margin |
+| `iot_ra_load` | 0 | **PLACEHOLDER** — IoT preambles per RA resource per opportunity (swept in exp3) |
+| `cochannel_load` | 0.5 | **PLACEHOLDER** — co-channel IoT load per resource; activity p_act = 1 - exp(-load) (medium level 0.5 nominal) |
+| `drone_gflops` | 470 | Jetson-Nano class (Hakani & Rawat 2024, task specification) |
+| `task_deadline_s` | 1 | **PLACEHOLDER** — task deadline |
+| `max_helpers` | 5 | **PLACEHOLDER** — helpers per task |
+| `chunk_overhead_mbit` | 0.2 | **PLACEHOLDER** — per-helper transfer overhead |
+| `battery_wh` | 148 | ≈ DJI Matrice 4D 149.9 Wh (task specification) |
+| `p_flight_w` | 120 | literature-based (task specification) |
+| `p_compute_w` | 10 | literature-based (task specification) |
+| `p_tx_w` | 8 | **PLACEHOLDER** — radio transmit power draw |
+| `raw_mbit` | 800 | **PLACEHOLDER** — raw sensor payload per capture |
+| `packet_mbit` | 0.5 | **PLACEHOLDER** — uplink packet size (exp3) |
+| `report_mbit` | 0.02 | **PLACEHOLDER** — edge-AI report size |
+| `capture_interval_s` | 10 | **PLACEHOLDER** — capture cycle length |
+| `h_sensor_m` | 0 | **PLACEHOLDER** — ground sensor height (given); no clutter or building-penetration loss is modelled |
+| `p_sensor_dbm` | 23 | 3GPP TR 36.763 Table 6.1-1 (UE power class 3); TR 38.821 Table 6.1.1.1-3 |
+| `g_sensor_dbi` | 0 | 3GPP TR 36.763 Table 6.1-1; TR 38.821 Table 6.1.1.1-3 |
+
+Fixed model structure (not parameters): TN 3GPP-like macro path loss 128.1 + 37.6 log10(d_km); mesh
+40 + 25 log10(d_m); free space for HAPS (20 GHz) and satellite (2 GHz); Nakagami-m on TN/mesh,
+log-normal shadowing on HAPS/satellite; satellite noise k·T·B from G/T; one TN BS at the hub;
+deterministic HAPS layout; co-channel TN IoT interferers associated with their nearest BS and
+power-controlled towards it; co-channel activity p_act = 1 − exp(−cochannel_load); slotted random
+access with binary exponential back-off; non-learned decision rules only (no Graph-MARL).
+
 ## Run
 
 ```bash
@@ -51,6 +147,9 @@ bit-identical `metrics.json` (tested).
   300 m of its BS and power-controlled towards it (see TN power control). HAPS: the co-channel user of each other HAPS, uniform inside that HAPS's
   own 10 km cell, through the serving beam's off-axis gain. Satellite: 6 co-channel users of
   other beams at the sidelobe level.
+- **TN interferer association.** Each co-channel IoT interferer (one dropped within 300 m of each BS)
+  is associated with its nearest BS (minimum path loss, the terminal's criterion) and power-controlled
+  towards it; interferers associated with the terminal's serving BS are not co-scheduled.
 - **Co-channel activity.** Every co-channel interferer (TN IoT user, other-HAPS user, other-beam
   satellite user) is active independently with p_act = 1 − exp(−load), drawn per realization;
   nominal load 0.5 ("medium") → p_act = 0.393.
@@ -389,6 +488,51 @@ the random stream). TN first below 50%: drones never; sensors 3.5 km (rev. 6: 0 
   worse but is not the cause: with consistent association the rise remains (0.701 → 0.821). Nothing
   else was changed.
 
+## Changes in revision 8 (v1.0): interferer association
+
+**Change (only this).** Every co-channel TN IoT interferer is associated with its nearest BS (by path
+loss, as for drones and sensors) and power-controlled towards it; previously it was tied to the BS it
+was dropped around, although 37.5% of core interferers were nearer another BS. Interferers associated
+with the serving BS are not co-scheduled. Exp 1 and Exp 4 are bit-identical; HAPS and satellite curves
+are bit-identical.
+
+**Fig. 3 curves at 0 / 1 / 2 / 3 / 5 / 10 km** (old = revision 7).
+
+| Terminal | Curve | Old, p_act 0.393 | New, p_act 0.393 | Old, p_act 1 | New, p_act 1 |
+|---|---|---|---|---|---|
+| drone | TN alone | 1.000 / 0.997 / 0.995 / 0.961 / 0.929 / 0.970 | 1.000 / 1.000 / 1.000 / 0.996 / 0.950 / 0.971 | 1.000 / 0.993 / 0.988 / 0.899 / 0.858 / 0.965 | 1.000 / 1.000 / 1.000 / 0.990 / 0.890 / 0.967 |
+| drone | HAPS alone, σ_b = 0 | 1.000 / 1.000 / 1.000 / 1.000 / 1.000 / 0.998 | unchanged | 1.000 / 1.000 / 1.000 / 1.000 / 1.000 / 0.997 | unchanged |
+| drone | HAPS alone, σ_b = 3° | 0.962 / 0.960 / 0.961 / 0.961 / 0.960 / 0.953 | unchanged | 0.955 / 0.955 / 0.956 / 0.955 / 0.954 / 0.944 | unchanged |
+| drone | satellite alone | 0.998 / 0.997 / 0.998 / 0.998 / 0.998 / 0.998 | unchanged | 0.996 / 0.996 / 0.995 / 0.996 / 0.996 / 0.996 | unchanged |
+| drone | hybrid, ideal / σ_b = 3° | 1.000 everywhere | 1.000 everywhere | 1.000 everywhere | 1.000 everywhere |
+| drone | TN + satellite | 1.000 everywhere | 1.000 everywhere | 1.000 / 1.000 / 1.000 / 1.000 / 0.999 / 1.000 | 1.000 / 1.000 / 1.000 / 1.000 / 0.999 / 1.000 |
+| sensor | TN alone | 0.525 / 0.594 / 0.722 / 0.655 / 0.440 / 0.443 | 0.697 / 0.735 / 0.819 / 0.734 / 0.442 / 0.443 | 0.156 / 0.231 / 0.417 / 0.391 / 0.427 / 0.433 | 0.346 / 0.416 / 0.590 / 0.500 / 0.432 / 0.436 |
+| sensor | HAPS alone, σ_b = 0 | 0.812 / 0.815 / 0.805 / 0.797 / 0.787 / 0.733 | unchanged | 0.810 / 0.812 / 0.803 / 0.796 / 0.785 / 0.729 | unchanged |
+| sensor | HAPS alone, σ_b = 3° | 0.531 / 0.527 / 0.520 / 0.518 / 0.506 / 0.447 | unchanged | 0.528 / 0.525 / 0.518 / 0.516 / 0.504 / 0.444 | unchanged |
+| sensor | satellite alone | 0.176 / 0.177 / 0.175 / 0.176 / 0.176 / 0.172 | unchanged | 0.174 / 0.175 / 0.173 / 0.175 / 0.174 / 0.170 | unchanged |
+| sensor | hybrid, ideal | 0.925 / 0.938 / 0.956 / 0.942 / 0.907 / 0.877 | 0.950 / 0.958 / 0.971 / 0.956 / 0.908 / 0.877 | 0.867 / 0.881 / 0.904 / 0.899 / 0.904 / 0.873 | 0.894 / 0.910 / 0.931 / 0.917 / 0.905 / 0.874 |
+| sensor | hybrid, σ_b = 3° | 0.812 / 0.844 / 0.889 / 0.863 / 0.778 / 0.744 | 0.879 / 0.896 / 0.931 / 0.896 / 0.778 / 0.744 | 0.667 / 0.700 / 0.766 / 0.756 / 0.772 / 0.738 | 0.743 / 0.771 / 0.838 / 0.802 / 0.773 / 0.739 |
+| sensor | TN + satellite | 0.606 / 0.662 / 0.772 / 0.711 / 0.539 / 0.538 | 0.746 / 0.781 / 0.853 / 0.777 / 0.540 / 0.538 | 0.301 / 0.363 / 0.516 / 0.493 / 0.527 / 0.529 | 0.459 / 0.518 / 0.661 / 0.583 / 0.531 / 0.531 |
+
+TN first below 50%: drones never (minimum 0.950 at 5 km); sensors 3.5 km → 4.0 km.
+
+**What remains of the sensor rise, and why it is physical.** Sensor TN still rises from 0.697 at the
+hub to 0.834 at 2.5 km (core edge) and then falls to ≈ 0.44 in the rural area. With α = 1 every
+power-controlled user, the sensor included, is received at −90 dBm, so in the reuse-1 core the sensor's
+SINR is set only by its serving BS's active co-channel neighbours: the hub BS is surrounded on all sides
+(12.5 BSs within 1 km), a core-edge BS sees interference from one side only (≈ 5–6), hence the rise; beyond
+the core the sensor reaches its 23 dBm cap and becomes noise-limited by the sparse rural BS spacing.
+
+**Exp 3 numbers that change** (TN only; old → new). Nominal: all-TN 42.5→96.0 ms, 0.3% → 38.4→93.2 ms,
+0.0%; terrestrial-first 42.4→28.6 → 38.4→28.5 ms; load-aware 19.1→25.8 ms unchanged; conservative
+19.1→26.3 → 19.1→26.1 ms. Equal 5 MHz: all-TN 14.0→69.2 ms, 0.2% → 13.2→68.2 ms, 0.0%. High IoT load
+(N = 50 latency, outage): all-TN 263.7 ms, 5.8% → 261.8 ms, 5.4%; load-aware 105.3 ms, 2.2% → 101.7 ms,
+2.1%; conservative 107.1 → 105.6 ms, 2.1%. HAPS RA 16 + high IoT load: all-TN 263.5 ms, 5.9% → 259.2 ms,
+5.4%; all-HAPS 204.6 ms, 4.2% → 209.5 ms, 4.3%; satellite 179.0 ms, 3.0% → 181.1 ms, 2.9%; load-aware
+139.1 → 137.4 ms, 2.8%; conservative 138.5 → 138.1 ms, 2.3%; terrestrial-first 162.2 ms, 3.3% →
+161.6 ms, 3.4% (HAPS and satellite rows change only through Monte Carlo draws shared with TN).
+Exp 5 TN median rate 15.31 → 16.20 Mbit/s.
+
 ## Experiment-specific choices
 
 - Exp 1 runs on a torus window (no edge effects) of side clip(√(2000/λ) km, 3, 10), 3 realizations
@@ -402,21 +546,21 @@ the random stream). TN first below 50%: drones never; sensors 3.5 km (rev. 6: 0 
 See `results/run_log.txt` and `results/metrics.json`. The summary of the latest run is in
 the section below.
 
-### Latest run (revision 7; seeds 1–5, seed mean)
+### Latest run (v1.0; seeds 1–5, seed mean)
 
 | Metric | Value |
 |---|---|
 | Exp 1 SG degree peak | 8.762 at 4 drones/km²; 6.061 at 250/km² (30.8% below peak) |
 | Exp 1 distance rule | r0 = 179.0 m; degree 5.481 → 31.229 |
-| Exp 2 drones at 0 / 2 / 5 / 10 km | TN 1.000 / 0.995 / 0.929 / 0.970; HAPS 1.000 / 1.000 / 1.000 / 0.998 (σ_b=3°: 0.962 / 0.961 / 0.960 / 0.953); sat 0.998 / 0.998 / 0.998 / 0.998; hybrid 1.000 everywhere; TN + sat 1.000 everywhere |
+| Exp 2 drones at 0 / 2 / 5 / 10 km | TN 1.000 / 1.000 / 0.950 / 0.971; HAPS 1.000 / 1.000 / 1.000 / 0.998 (σ_b=3°: 0.962 / 0.961 / 0.960 / 0.953); sat 0.998 / 0.998 / 0.998 / 0.998; hybrid 1.000 everywhere; TN + sat 1.000 everywhere |
 | Exp 2 drone gain 0 / 3 / 10 dBi at 10 km | satellite 0.748 / 0.913 / 0.998; TN + satellite 0.932 / 0.987 / 1.000; hybrid 1.000 / 1.000 / 1.000 |
-| Exp 2b sensors at 0 / 2 / 5 / 10 km | TN 0.525 / 0.722 / 0.440 / 0.443; HAPS 0.812 / 0.805 / 0.787 / 0.733 (σ_b=3°: 0.531 / 0.520 / 0.506 / 0.447); sat 0.176 / 0.175 / 0.176 / 0.172; hybrid 0.925 / 0.956 / 0.907 / 0.877 (σ_b=3°: 0.812 / 0.889 / 0.778 / 0.744); TN + sat 0.606 / 0.772 / 0.539 / 0.538 |
-| Exp 2b sensors at 10 km: hybrid / no HAPS at −5 / 0 / +5 dB | 1.000 / 0.987, 0.995 / 0.857, 0.877 / 0.538 |
-| Median uplink rate (exp5) | TN 15.31, HAPS 41.09, satellite 6.20 Mbit/s |
-| Exp 3 latency N=1→50, outage (drone-only RA) | TN 42.5→96.0 ms, 0.3%; HAPS 19.1→25.8 ms, 0.0%; sat 92.6→101.0 ms, 0.2%; terrestrial-first 42.4→28.6 ms; load-aware (conservative) 19.1→26.3 ms; load-aware 19.1→25.8 ms; all 0.0% outage |
-| Exp 3 high IoT load (1.0, p_act 0.632): outage (RA failure) | TN 5.8% (3.3%); HAPS 2.2% (1.4%); sat 2.8% (1.3%); terrestrial-first 2.6% (1.6%); load-aware (conservative) 2.1% (1.3%); load-aware 2.2% (1.3%) |
-| Exp 3, HAPS RA 16, drone-only: latency N=1→50 | HAPS 18.7→56.4 ms; terrestrial-first 33.9→43.0 ms; load-aware (conservative) 18.7→52.4 ms; load-aware 18.7→43.1 ms; all 0.0% outage except sat 0.2% |
-| Exp 3, HAPS RA 16, high IoT load: outage (RA failure + over limit), latency at N=50 | TN 5.9% (5.4%), 263.5 ms; HAPS 4.2% (4.2%), 204.6 ms; sat 3.0% (2.6%), 179.0 ms; terrestrial-first 3.3% (3.3%), 162.2 ms; load-aware (conservative) 2.3% (2.4%), 138.5 ms; load-aware 2.8% (2.8%), 139.1 ms |
+| Exp 2b sensors at 0 / 2 / 5 / 10 km | TN 0.697 / 0.819 / 0.442 / 0.443; HAPS 0.812 / 0.805 / 0.787 / 0.733 (σ_b=3°: 0.531 / 0.520 / 0.506 / 0.447); sat 0.176 / 0.175 / 0.176 / 0.172; hybrid 0.950 / 0.971 / 0.908 / 0.877 (σ_b=3°: 0.879 / 0.931 / 0.778 / 0.744); TN + sat 0.746 / 0.853 / 0.540 / 0.538 |
+| Exp 2b sensors at 10 km: hybrid / no HAPS at −5 / 0 / +5 dB | 1.000 / 0.987, 0.996 / 0.857, 0.877 / 0.538 |
+| Median uplink rate (exp5) | TN 16.20, HAPS 41.09, satellite 6.20 Mbit/s |
+| Exp 3 latency N=1→50, outage (drone-only RA) | TN 38.4→93.2 ms, 0.0%; HAPS 19.1→25.9 ms, 0.0%; sat 92.6→101.5 ms, 0.3%; terrestrial-first 38.4→28.5 ms; load-aware (conservative) 19.1→26.1 ms; load-aware 19.1→25.8 ms; 0.0% outage |
+| Exp 3 high IoT load (1.0, p_act 0.632): outage, latency at N=50 | TN 5.4%, 261.8 ms; HAPS 2.2%, 108.0 ms; sat 3.0%, 182.0 ms; terrestrial-first 2.6%, 105.8 ms; load-aware (conservative) 2.1%, 105.6 ms; load-aware 2.1%, 101.7 ms |
+| Exp 3, HAPS RA 16, drone-only: latency at N=50 | HAPS 56.4 ms; terrestrial-first 43.0 ms; load-aware (conservative) 52.4 ms; load-aware 43.1 ms |
+| Exp 3, HAPS RA 16, high IoT load: outage (RA failure + over limit), latency at N=50 | TN 5.4% (5.4%), 259.2 ms; HAPS 4.3% (4.3%), 209.5 ms; sat 2.9% (2.5%), 181.1 ms; terrestrial-first 3.4% (3.4%), 161.6 ms; load-aware (conservative) 2.3% (2.3%), 138.1 ms; load-aware 2.8% (2.8%), 137.4 ms |
 | Exp 4 coop completion at 1000 / 2000 GFLOP | 98.2% / 91.0% (solo: step at 470 GFLOP) |
 | Exp 5 raw streaming | needs 80 Mbit/s; feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS) |
 | Exp 5 median endurance | raw 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
@@ -424,22 +568,21 @@ the section below.
 ### Known sanity-check failures (not fixed, reported as found)
 
 - `tn_non_increasing` and `tn_max_at_hub` (exp2b), test `test_tn_coverage_maximal_at_hub` (sensor
-  case): sensor TN is 0.525 at the hub and peaks at 0.722 at 2 km. Cause in revision 7 (α = 1
-  equalisation + co-channel neighbourhood density; the association artefact makes it worse).
-  Drone TN passes both checks.
+  case): sensor TN 0.697 at the hub, peak 0.834 at 2.5 km. Physical with α = 1 power control in a
+  reuse-1 core (revision 8). Drone TN passes both checks.
 - `naive_monotone_non_decreasing` (exp1 only): one dip 6.062 → 5.879 between 4 and 6 drones/km²,
-  Monte Carlo noise at low density (only 15 realizations per density). Same seeds and geometry as the
-  previous runs; a 60-realization re-check showed the step increasing.
+  Monte Carlo noise at low density (only 15 realizations per density). A 60-realization re-check
+  showed the step increasing.
 
-## Claims (revision 7)
+## Claims (v1.0)
 
 | Claim | Verdict | Numbers |
 |---|---|---|
 | (a) SG graph saturates while distance rule grows | holds | SG degree peaks 8.762 at 4/km², falls to 6.061 at 250/km² (−30.8%); distance rule 5.481 → 31.229 |
-| (b) HAPS is needed for coverage (drones) | does not hold | TN + satellite 1.000 at every distance and threshold (hybrid 1.000); with p_act = 1 also ≥ 0.999. Even a 0 dBi drone gets 0.932 at 10 km without HAPS vs 1.000 with it (3 dBi: 0.987 vs 1.000) |
-| (c) HAPS is needed for latency/throughput | holds at nominal bandwidths; a bandwidth effect | all-HAPS 19.1→25.8 ms vs TN 42.5→96.0 ms and satellite 92.6→101.0 ms; HAPS median 41.09 Mbit/s vs TN 15.31, sat 6.20 |
-| (d) coordination prevents congestion collapse | does not hold as stated; coordination helps latency when HAPS is congested | no collapse in any case (worst: all-TN 9.8% outage at N=50, HAPS RA 16 + high IoT load). HAPS RA 16, drone-only: load-aware 43.1 ms at N=50 vs all-HAPS 56.4 ms, terrestrial-first 43.0 ms (tie). HAPS RA 16 + high IoT load: load-aware 2.8% outage, 139.1 ms (conservative variant 2.3%, 138.5 ms) vs best single tier (satellite) 3.0%, 179.0 ms and terrestrial-first 3.3%, 162.2 ms |
+| (b) HAPS is needed for coverage (drones) | does not hold | TN + satellite 1.000 at every distance and threshold (hybrid 1.000); ≥ 0.999 at p_act = 1. A 0 dBi drone gets 0.932 at 10 km without HAPS vs 1.000 with it (3 dBi: 0.987 vs 1.000) |
+| (c) HAPS is needed for latency/throughput | holds at nominal bandwidths; a bandwidth effect | all-HAPS 19.1→25.9 ms vs TN 38.4→93.2 ms and satellite 92.6→101.5 ms; HAPS median 41.09 Mbit/s vs TN 16.20, sat 6.20 |
+| (d) coordination prevents congestion collapse | does not hold as stated; coordination reduces latency when HAPS is congested | no collapse in any case (worst: all-TN 9.4% outage at N=50, HAPS RA 16 + high IoT load). HAPS RA 16, drone-only: load-aware 43.1 ms at N=50 vs all-HAPS 56.4 ms (terrestrial-first 43.0 ms). HAPS RA 16 + high IoT load: load-aware 2.8% outage, 137.4 ms (conservative 2.3%, 138.1 ms) vs best single tier (satellite) 2.9%, 181.1 ms; terrestrial-first 3.4%, 161.6 ms |
 | (e) cooperation beats solo | holds | 91.0% vs 0% completion at 2000 GFLOP |
 | (f) edge-AI is needed for data delivery | holds (if the 0.02 Mbit report carries the needed information) | raw feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS); report feasible 100% |
 | (g) edge-AI saves energy | does not hold | endurance edge-AI 68.3 min vs raw 69.4 min |
-| (h) HAPS is needed for coverage of ground IoT sensors | holds at +5 and 0 dB; small margin at −5 dB | +5 dB, hybrid vs TN + sat: 0.925 vs 0.606 at the hub, 0.956 vs 0.772 at 2 km, 0.907 vs 0.539 at 5 km, 0.877 vs 0.538 at 10 km (σ_b = 3°: 0.744 at 10 km). 10 km at 0 dB: 0.995 vs 0.857; −5 dB: 1.000 vs 0.987 |
+| (h) HAPS is needed for coverage of ground IoT sensors | holds at +5 and 0 dB; small margin at −5 dB | +5 dB, hybrid vs TN + sat: 0.950 vs 0.746 at the hub, 0.971 vs 0.853 at 2 km, 0.908 vs 0.540 at 5 km, 0.877 vs 0.538 at 10 km (σ_b = 3°: 0.744 at 10 km). 10 km at 0 dB: 0.996 vs 0.857; −5 dB: 1.000 vs 0.987 |

@@ -378,14 +378,16 @@ class SAGINWorld:
         if p.terminal_tn_power_control:
             p_tx = self.ul_power_dbm(p.p_drone_access_dbm, pl_srv - p.g_drone_dbi - p.g_tn_dbi)
         sig = dbm2w(p_tx + p.g_drone_dbi + p.g_tn_dbi - pl_srv) * self.nakagami(rng, n)
-        # one co-channel IoT uplink user per other cell, power-controlled towards its own BS,
-        # received at the serving BS
+        # co-channel IoT uplink users (one dropped near each BS), each associated with its nearest BS
+        # (minimum path loss, as for the terminal) and power-controlled towards it; received at the
+        # serving BS
         d_ib = np.sqrt(((dep.iot_xy[:, None, :] - dep.bs_xy[None]) ** 2).sum(-1) + (p.h_bs_m - p.h_iot_m) ** 2)
         pl_ib = self.pl_tn_db(d_ib)  # (interferer, BS)
-        p_iot = self.ul_power_dbm(p.p_iot_dbm, np.diag(pl_ib) - p.g_iot_dbi - p.g_tn_dbi)
+        own = pl_ib.argmin(1)
+        p_iot = self.ul_power_dbm(p.p_iot_dbm, pl_ib[np.arange(len(own)), own] - p.g_iot_dbi - p.g_tn_dbi)
         pw = dbm2w(p_iot[:, None] + p.g_iot_dbi + p.g_tn_dbi - pl_ib)
         pw_srv = pw[:, srv].T.copy()  # (drone, interferer)
-        pw_srv[np.arange(n), srv] = 0.0  # the serving cell schedules the drone, not its own IoT user
+        pw_srv[own[None, :] == srv[:, None]] = 0.0  # the serving cell schedules the terminal, not its own IoT users
         active = rng.uniform(size=pw_srv.shape[1]) < self.p_act  # sparse IoT traffic: co-channel activity
         interf = (pw_srv * active[None, :] * self.nakagami(rng, pw_srv.shape)).sum(1)
         return self.sinr(sig, interf, self.noise_w(p.b_tn_hz)), d_srv
