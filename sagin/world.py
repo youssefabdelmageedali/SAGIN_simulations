@@ -14,6 +14,7 @@ import numpy as np
 
 C_LIGHT = 299_792_458.0  # m/s
 R_EARTH = 6_371e3  # m
+K_BOLTZMANN = 1.380649e-23  # J/K
 
 
 @dataclass(frozen=True)
@@ -24,11 +25,11 @@ class Params:
     h_bs_m: float = 25.0
     h_iot_m: float = 1.5
     h_haps_m: float = 20e3
-    h_sat_m: float = 550e3
+    h_sat_m: float = 600e3  # LEO-600, TR 38.821 Table 6.1.1.1-1
     # --- carriers -----------------------------------------------------------
     f_tn_hz: float = 2e9
     f_haps_hz: float = 20e9
-    f_sat_hz: float = 20e9
+    f_sat_hz: float = 2e9  # S-band, TR 38.821 Table 6.1.1.1-1, TR 36.763 Table 6.1-1
     # --- transmit powers ----------------------------------------------------
     p_drone_access_dbm: float = 30.0  # UAV value, Lou et al. Table I
     p_drone_mesh_dbm: float = 10.0
@@ -37,7 +38,10 @@ class Params:
     g_drone_dbi: float = 10.0  # UAV value, Lou et al. Table I (also used on mesh links)
     g_tn_dbi: float = 15.0
     g_haps_dbi: float = 30.0  # Lou et al. Table I
-    g_sat_dbi: float = 50.0  # Lou et al. Table I
+    g_sat_dbi: float = 30.0  # Set-1 LEO-600 S-band Rx max gain, TR 38.821 Table 6.1.1.1-1
+    sat_gt_dbk: float = 1.1  # Set-1 LEO-600 S-band G/T, TR 38.821 Table 6.1.1.1-1
+    # scintillation 2.2 + atmospheric 0.1 + polarization 3.0 dB, LEO-600, TR 36.763 Table 6.2-1
+    sat_losses_db: float = 5.3
     g_iot_dbi: float = 0.0
     # --- fading / noise -----------------------------------------------------
     nakagami_m: float = 2.0
@@ -47,7 +51,7 @@ class Params:
     # --- bandwidths ---------------------------------------------------------
     b_tn_hz: float = 1e6
     b_haps_hz: float = 5e6
-    b_sat_hz: float = 1.5e6
+    b_sat_hz: float = 1.08e6  # eMTC uplink, up to 1080 kHz, TR 36.763 Table 6.1-1
     b_mesh_hz: float = 20e6
     n_subch_mesh: int = 8
     # --- HAPS beam ----------------------------------------------------------
@@ -61,7 +65,7 @@ class Params:
     tn_interferer_radius_m: float = 300.0  # co-channel IoT uplink user around each other BS
     n_haps: int = 3
     n_sat: int = 720
-    sat_min_elev_deg: float = 10.0
+    sat_min_elev_deg: float = 10.0  # TR 36.763 Table 6.1-1
     n_sat_cochannel: int = 6
     # --- drone swarm (Thomas cluster process) -------------------------------
     pcp_mean_offspring: float = 10.0
@@ -81,7 +85,11 @@ class Params:
     backoff_cap_exp: int = 6  # back-off window capped at 2**6 opportunities
     ra_max_attempts: int = 10
     latency_limit_s: float = 1.0
-    tn_cap_margin: int = 1  # balanced policy keeps at most n_ra_tn + margin drones on TN
+    tn_cap_margin: int = 1  # terrestrial-first baseline keeps at most n_ra_tn + margin drones on TN
+    # massive-IoT background: IoT preambles per RA resource per opportunity, on every tier
+    # (0 = drone-only). Active devices of a PPP picking resources uniformly give independent
+    # Poisson counts per resource.
+    iot_ra_load: float = 0.0
     # --- compute ------------------------------------------------------------
     drone_gflops: float = 470.0
     task_deadline_s: float = 1.0
@@ -109,7 +117,6 @@ PLACEHOLDERS = {
     "tn_interferer_radius_m": "co-channel uplink user placement around other BSs",
     "n_haps": "number of HAPS over the region",
     "n_sat": "LEO constellation size for the spherical BPP",
-    "sat_min_elev_deg": "minimum service elevation",
     "n_sat_cochannel": "co-channel users in other satellite beams",
     "pcp_mean_offspring": "Thomas-process mean cluster size",
     "pcp_sigma_m": "Thomas-process cluster spread",
@@ -124,7 +131,8 @@ PLACEHOLDERS = {
     "backoff_cap_exp": "binary exponential back-off cap",
     "ra_max_attempts": "RA attempts before giving up",
     "latency_limit_s": "latency outage limit",
-    "tn_cap_margin": "balanced-policy TN load margin",
+    "tn_cap_margin": "terrestrial-first baseline TN load margin",
+    "iot_ra_load": "IoT preambles per RA resource per opportunity (swept in exp3)",
     "task_deadline_s": "task deadline",
     "max_helpers": "helpers per task",
     "chunk_overhead_mbit": "per-helper transfer overhead",
@@ -178,6 +186,11 @@ class SAGINWorld:
     @property
     def access_th(self):
         return float(db2lin(self.p.access_th_db))
+
+    def ra_resources(self):
+        """Random-access resources per tier, indexed TN=0, HAPS=1, SAT=2."""
+        p = self.p
+        return np.array([p.n_ra_tn, p.n_ra_haps, p.n_ra_sat])
 
     def tier_bandwidths(self):
         """Bandwidth per tier, indexed TN=0, HAPS=1, SAT=2."""
@@ -347,11 +360,22 @@ class SAGINWorld:
         sin_el = (rs * dep.sat_cos_psi - R_EARTH) / d
         return d, float(np.degrees(np.arcsin(np.clip(sin_el, -1, 1))))
 
+    def sat_noise_w(self, bandwidth_hz):
+        """Thermal noise k*T*B at the satellite receiver, T = G_rx / (G/T)."""
+        p = self.p
+        t_sys = db2lin(p.g_sat_dbi - p.sat_gt_dbk)
+        return K_BOLTZMANN * t_sys * bandwidth_hz
+
+    def sat_link_cn_db(self, p_tx_dbm, g_tx_dbi, path_loss_db, extra_loss_db, bandwidth_hz):
+        """Uplink C/N (dB) from the satellite G/T: P + G_tx - L + G/T - 10log10(k B)."""
+        return (p_tx_dbm - 30 + g_tx_dbi - path_loss_db - extra_loss_db + self.p.sat_gt_dbk
+                - 10 * np.log10(K_BOLTZMANN * bandwidth_hz))
+
     def sat_sinr(self, dep, xy, rng):
         """Uplink SINR and slant range to the serving LEO satellite.
 
         Drones are at most a few km apart, so they share the serving satellite
-        and slant range (the offset is negligible against 550 km altitude).
+        and slant range (the offset is negligible against the 600 km altitude).
         """
         p = self.p
         n = len(xy)
@@ -360,10 +384,10 @@ class SAGINWorld:
         intf_shadow = self.shadowing(rng, (n, p.n_sat_cochannel))
         if el < p.sat_min_elev_deg:
             return np.zeros(n), np.full(n, np.inf)
-        base = p.p_drone_access_dbm + p.g_drone_dbi - self.fspl_db(d, p.f_sat_hz)
+        base = p.p_drone_access_dbm + p.g_drone_dbi - self.fspl_db(d, p.f_sat_hz) - p.sat_losses_db
         sig = dbm2w(base + p.g_sat_dbi) * shadow
         interf = (dbm2w(base + p.g_sat_dbi + p.sidelobe_db) * intf_shadow).sum(1)
-        return self.sinr(sig, interf, self.noise_w(p.b_sat_hz)), np.full(n, d)
+        return self.sinr(sig, interf, self.sat_noise_w(p.b_sat_hz)), np.full(n, d)
 
     # --------------------------------------------------------- random access
     def random_access(self, tier, detectable, rng):
@@ -372,12 +396,13 @@ class SAGINWorld:
         tier: (T, N) int tier per drone (TN=0, HAPS=1, SAT=2, -1 = not contending).
         detectable: (T, N) bool, preamble decodable (SINR above the access threshold).
         All contenders start at opportunity 0. Per opportunity a contender picks one
-        of its tier's resources uniformly and succeeds iff alone on it and detectable;
+        of its tier's resources uniformly and succeeds iff detectable and alone on it
+        (no other drone, and no IoT preamble: Poisson(iot_ra_load) per resource);
         after the k-th failure it waits U{0, ..., 2**min(k, cap) - 1} extra opportunities.
         Returns access delay in seconds, inf when not contending or after max attempts.
         """
         p = self.p
-        n_ra = np.array([p.n_ra_tn, p.n_ra_haps, p.n_ra_sat])
+        n_ra = self.ra_resources()
         max_ra = int(n_ra.max())
         t, n = tier.shape
         pending = tier >= 0
@@ -392,6 +417,8 @@ class SAGINWorld:
                 res = rng.integers(0, n_ra[tt])
                 key = (ti * 3 + tt) * max_ra + res
                 alone = np.bincount(key, minlength=t * 3 * max_ra)[key] == 1
+                if p.iot_ra_load > 0:
+                    alone &= rng.uniform(size=len(key)) < np.exp(-p.iot_ra_load)
                 ok = alone & detectable[ti, di]
                 delay[ti[ok], di[ok]] = (slot + 1) * p.t_ra_s
                 pending[ti[ok], di[ok]] = False
@@ -402,6 +429,23 @@ class SAGINWorld:
                 next_slot[fi, fd] = slot + 1 + rng.integers(0, 2 ** np.minimum(k, p.backoff_cap_exp))
             slot += 1
         return delay
+
+    def expected_access(self, n_contenders, n_ra):
+        """Analytic counterpart of random_access for load-aware decisions.
+
+        Per-attempt success p = exp(-(n - 1)/n_ra - iot_ra_load) (Poisson collisions with the
+        other n - 1 contenders and the IoT background), the same back-off and attempt limit.
+        Returns (expected access delay given success [s], failure probability).
+        """
+        p = self.p
+        ps = np.exp(-(np.maximum(n_contenders, 1) - 1) / n_ra - p.iot_ra_load)[..., None]
+        k = np.arange(1, p.ra_max_attempts + 1)
+        gaps = 1 + (2.0 ** np.minimum(k, p.backoff_cap_exp) - 1) / 2  # opportunities after failure k
+        start = np.concatenate([[0.0], np.cumsum(gaps[:-1])])  # opportunity index of attempt k
+        pk = ps * (1 - ps) ** (k - 1)
+        p_succ = pk.sum(-1)
+        delay = (pk * (start + 1) * p.t_ra_s).sum(-1) / np.maximum(p_succ, 1e-300)
+        return delay, 1 - p_succ
 
     def latency_s(self, access_s, payload_mbit, rate_bps, dist_m):
         """End-to-end latency = access + transmission + propagation."""
@@ -459,6 +503,10 @@ class SAGINWorld:
         """Unsent data (Mbit) at times t_s for drones streaming at rate_bps (fluid queue)."""
         growth = np.maximum(self.required_rate_bps(payload_mbit) - np.asarray(rate_bps, dtype=float), 0.0)
         return np.outer(growth, t_s) / 1e6
+
+    def delivered_mbit_per_cycle(self, payload_mbit, rate_bps):
+        """Data actually delivered per capture cycle (the rest joins the backlog)."""
+        return np.minimum(payload_mbit, np.asarray(rate_bps, dtype=float) * self.p.capture_interval_s / 1e6)
 
     def cycle_energy_j(self, payload_mbit, rate_bps, onboard_compute):
         """Energy per capture cycle: flight + radio (P_tx x airtime, capped at the interval) + optional compute."""

@@ -1,5 +1,6 @@
 """Sanity tests for the SAGIN physics engine and experiments (section 7 of the spec)."""
 import filecmp
+from dataclasses import replace
 
 import numpy as np
 
@@ -42,7 +43,7 @@ def test_sinr_drops_when_interferers_added():
 def test_fixed_policy_latency_non_decreasing():
     n_grid = [1, 10, 25, 50]
     for pol in ["all_tn", "all_haps"]:
-        lat = np.mean([exp3_latency.simulate(WORLD, s, n_grid, 30, policies=[pol])[0][pol] for s in (1, 2)], 0)
+        lat = np.mean([exp3_latency.simulate(WORLD, s, n_grid, 30, policies=[pol])[pol]["lat"] for s in (1, 2)], 0)
         assert np.all(np.diff(lat) >= -0.05 * lat[:-1]), (pol, lat)
 
 
@@ -74,3 +75,19 @@ def test_same_seed_reproduces_metrics(tmp_path):
     run_all.main(["--quick", "--out", str(a)])  # exit code reflects sanity checks, not reproducibility
     run_all.main(["--quick", "--out", str(b)])
     assert filecmp.cmp(a / "metrics.json", b / "metrics.json", shallow=False)
+
+
+def test_sat_cn_matches_3gpp_calibration():
+    # TR 36.763 sec. 6.2.2.1.1, case 3 (LEO-600, Set-1, PC3 23 dBm, 0 dBi, FSPL 159.7 dB,
+    # losses 2.2 + 0.1 + 3 + 3 shadow margin + 3 beam edge): UL C/N -8.6 dB at 1080 kHz, 16.0 dB at 3.75 kHz
+    assert abs(WORLD.sat_link_cn_db(23, 0, 159.7, 11.3, 1.08e6) - (-8.6)) < 0.1
+    assert abs(WORLD.sat_link_cn_db(23, 0, 159.7, 11.3, 3.75e3) - 16.0) < 0.1
+
+
+def test_iot_load_raises_access_delay():
+    rng = make_rng(15, 0)
+    tier = np.zeros((300, 20), dtype=int)
+    det = np.ones_like(tier, dtype=bool)
+    quiet = WORLD.random_access(tier, det, rng)
+    busy = SAGINWorld(replace(WORLD.p, iot_ra_load=1.0)).random_access(tier, det, rng)
+    assert np.nanmean(np.where(np.isfinite(busy), busy, np.nan)) > np.nanmean(np.where(np.isfinite(quiet), quiet, np.nan))
