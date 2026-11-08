@@ -10,6 +10,7 @@ from sagin.world import SAGINWorld
 DIST_KM = np.round(np.arange(0, 10.01, 0.5), 2)
 CURVES = ["tn", "haps_ideal", "haps_err", "sat", "hybrid_ideal", "hybrid_err", "no_haps"]
 SWEEP_TH_DB = [-5.0, 0.0, 5.0]
+DRONE_GAINS_DBI = [0.0, 3.0, 10.0]
 LABELS = {"tn": "TN alone", "haps_ideal": "HAPS alone, ideal", "haps_err": "HAPS alone, σ_b=3°",
           "sat": "satellite alone", "hybrid_ideal": "hybrid, ideal HAPS", "hybrid_err": "hybrid, σ_b=3°",
           "no_haps": "TN + satellite (no HAPS)"}
@@ -43,8 +44,8 @@ def coverage(world, seed, dist_km, n_real):
     return {k: v / n_real for k, v in hits.items()}
 
 
-def run(world, seeds, outdir, quick=False, log=print):
-    n_real = 300 if quick else 2000
+def study(world, seeds, n_real, outdir, fig_main, fig_sweep, xlabel, log):
+    """Coverage vs. distance and the access-threshold sweep for the world's access terminal."""
     res = [coverage(world, s, DIST_KM, n_real) for s in seeds]
     cov = {k: np.array([r[k] for r in res]) for k in CURVES}
     m = {k: v.mean(0) for k, v in cov.items()}
@@ -78,11 +79,11 @@ def run(world, seeds, outdir, quick=False, log=print):
          linestyle="--")
     band(ax, DIST_KM, cov["sat"], COLORS["sat"], "satellite alone", marker="x")
     band(ax, DIST_KM, cov["tn"], COLORS["tn"], "TN alone", marker="s")
-    ax.set_xlabel("drone distance from hub (km)")
+    ax.set_xlabel(xlabel)
     ax.set_ylabel(f"coverage Pr[SINR > {world.p.access_th_db:g} dB]")
     ax.set_ylim(-0.02, 1.02)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False)
-    save(fig, f"{outdir}/fig3_coverage_vs_distance.png")
+    save(fig, f"{outdir}/{fig_main}")
 
     # access-threshold sensitivity (same seeds and geometry; only the threshold changes)
     sweep = {}
@@ -114,7 +115,7 @@ def run(world, seeds, outdir, quick=False, log=print):
     ax.set_xticks(SWEEP_TH_DB)
     ax.set_ylim(-0.02, 1.02)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False)
-    save(fig, f"{outdir}/fig3b_coverage_threshold_sweep.png")
+    save(fig, f"{outdir}/{fig_sweep}")
 
     out = {"distances_km": DIST_KM.tolist(), "tn_below_half_km": tn_half_km, "tn_below_1pct_km": tn_zero_km,
            "checks": checks}
@@ -127,4 +128,24 @@ def run(world, seeds, outdir, quick=False, log=print):
         out[f"{k}_at_0km"] = spread(cov[k][:, 0])
         out[f"{k}_at_10km"] = spread(cov[k][:, -1])
         out[f"{k}_mean_over_distance"] = spread(cov[k].mean(1))
+    return out
+
+
+def run(world, seeds, outdir, quick=False, log=print):
+    n_real = 300 if quick else 2000
+    out = study(world, seeds, n_real, outdir, "fig3_coverage_vs_distance.png", "fig3b_coverage_threshold_sweep.png",
+                "drone distance from hub (km)", log)
+
+    # drone terminal antenna-gain sensitivity (Tx power unchanged; same seeds and geometry)
+    log(f"drone antenna-gain sweep (Tx {world.p.p_drone_access_dbm:g} dBm), coverage at 10 km:")
+    sweep = {}
+    for g in DRONE_GAINS_DBI:
+        w = world if g == world.p.g_drone_dbi else SAGINWorld(replace(world.p, g_drone_dbi=g))
+        r = [coverage(w, s, DIST_KM, n_real) for s in seeds]
+        c = {k: np.array([x[k] for x in r]) for k in CURVES}
+        sweep[f"{g:g}dBi"] = {k: {"at_10km": spread(c[k][:, -1]), "mean_over_distance": spread(c[k].mean(1))}
+                              for k in CURVES}
+        log(f"  {g:4g} dBi: " + ", ".join(f"{k} {c[k][:, -1].mean():.3f}"
+                                         for k in ["sat", "no_haps", "hybrid_ideal", "haps_ideal", "tn"]))
+    out["drone_gain_sweep"] = sweep
     return out

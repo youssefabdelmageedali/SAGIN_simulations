@@ -1,11 +1,11 @@
-===== exp1 (fig2) 61s
+===== exp1 (fig2) 59s
 SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
 SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
 Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
 check sg_peaks_before_max_density: True
 check naive_monotone_non_decreasing: False
 
-===== exp2 (fig3) 11s
+===== exp2 (fig3) 21s
 tn           : 0.889 at 0 km -> 0.019 at 10 km (mean over distance 0.615)
 haps_ideal   : 0.910 at 0 km -> 1.000 at 10 km (mean over distance 0.954)
 haps_err     : 0.818 at 0 km -> 0.945 at 10 km (mean over distance 0.880)
@@ -26,6 +26,33 @@ access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):
   hybrid_ideal  -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
   hybrid_err    -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 1.000/1.000/1.000
   no_haps       -5 dB: 1.000/1.000/1.000 | +0 dB: 1.000/1.000/1.000 | +5 dB: 0.999/0.999/0.996
+drone antenna-gain sweep (Tx 30 dBm), coverage at 10 km:
+     0 dBi: sat 0.743, no_haps 0.743, hybrid_ideal 0.999, haps_ideal 0.992, tn 0.000
+     3 dBi: sat 0.901, no_haps 0.901, hybrid_ideal 1.000, haps_ideal 0.999, tn 0.000
+    10 dBi: sat 0.996, no_haps 0.996, hybrid_ideal 1.000, haps_ideal 1.000, tn 0.019
+
+===== exp2b (fig3c) 11s
+ground IoT sensor terminal: height 0 m, Tx 23 dBm, antenna gain 0 dBi (all other parameters as exp2)
+tn           : 0.389 at 0 km -> 0.000 at 10 km (mean over distance 0.221)
+haps_ideal   : 0.712 at 0 km -> 0.762 at 10 km (mean over distance 0.742)
+haps_err     : 0.451 at 0 km -> 0.480 at 10 km (mean over distance 0.471)
+sat          : 0.180 at 0 km -> 0.174 at 10 km (mean over distance 0.175)
+hybrid_ideal : 0.859 at 0 km -> 0.806 at 10 km (mean over distance 0.839)
+hybrid_err   : 0.730 at 0 km -> 0.572 at 10 km (mean over distance 0.663)
+no_haps      : 0.500 at 0 km -> 0.174 at 10 km (mean over distance 0.357)
+TN coverage first below 0.5 at 0.0 km, below 0.01 at 7.0 km
+HAPS tier gain at 10 km: hybrid(ideal) 0.806 vs TN+sat only 0.174
+check tn_non_increasing: False
+check hybrid_ge_every_tier: True
+check haps_err_le_ideal: True
+access-threshold sweep, coverage at 0 km / 5 km / 10 km (mean over seeds):
+  tn            -5 dB: 0.739/0.625/0.000 | +0 dB: 0.566/0.448/0.000 | +5 dB: 0.389/0.287/0.000
+  haps_ideal    -5 dB: 0.987/0.993/0.999 | +0 dB: 0.934/0.953/0.974 | +5 dB: 0.712/0.749/0.762
+  haps_err      -5 dB: 0.874/0.888/0.897 | +0 dB: 0.728/0.756/0.770 | +5 dB: 0.451/0.480/0.480
+  sat           -5 dB: 0.920/0.923/0.917 | +0 dB: 0.593/0.601/0.593 | +5 dB: 0.180/0.177/0.174
+  hybrid_ideal  -5 dB: 1.000/1.000/1.000 | +0 dB: 0.988/0.990/0.990 | +5 dB: 0.859/0.855/0.806
+  hybrid_err    -5 dB: 0.998/0.997/0.991 | +0 dB: 0.954/0.946/0.907 | +5 dB: 0.730/0.695/0.572
+  no_haps       -5 dB: 0.981/0.971/0.917 | +0 dB: 0.824/0.785/0.593 | +5 dB: 0.500/0.413/0.174
 
 ===== exp3 (fig4) 21s
 drone-only (no IoT load), nominal bandwidths and threshold:

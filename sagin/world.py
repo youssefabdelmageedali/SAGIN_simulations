@@ -9,7 +9,7 @@ unless a name ends in _dbm / _db / _dbi. SINR values are linear.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import numpy as np
 
 C_LIGHT = 299_792_458.0  # m/s
@@ -104,6 +104,10 @@ class Params:
     packet_mbit: float = 0.5
     report_mbit: float = 0.02
     capture_interval_s: float = 10.0
+    # --- ground IoT sensor terminal (exp2b) ---------------------------------
+    h_sensor_m: float = 0.0
+    p_sensor_dbm: float = 23.0  # UE power class 3, TR 36.763 Table 6.1-1; TR 38.821 Table 6.1.1.1-3 handheld
+    g_sensor_dbi: float = 0.0  # omnidirectional 0 dBi, TR 36.763 Table 6.1-1; TR 38.821 Table 6.1.1.1-3
 
 
 # Params fields that are not literature-matched, with a one-line reason.
@@ -141,6 +145,7 @@ PLACEHOLDERS = {
     "packet_mbit": "uplink packet size (exp3)",
     "report_mbit": "edge-AI report size",
     "capture_interval_s": "capture cycle length",
+    "h_sensor_m": "ground sensor height (given); no clutter or building-penetration loss is modelled",
 }
 
 
@@ -279,6 +284,13 @@ class SAGINWorld:
         # n_sat points uniform on the orbital sphere: cos(psi) ~ U(-1, 1) each; keep the max
         cos_psi = 2 * rng.uniform() ** (1.0 / p.n_sat) - 1
         return Deployment(bs, iot, haps, haps_intf, float(cos_psi))
+
+    def ground_sensor(self):
+        """The same world with a ground IoT sensor as the access-link terminal (height, Tx power,
+        antenna gain); co-channel HAPS/satellite users are then sensors too. Nothing else changes."""
+        p = self.p
+        return SAGINWorld(replace(p, h_drone_m=p.h_sensor_m, p_drone_access_dbm=p.p_sensor_dbm,
+                                  g_drone_dbi=p.g_sensor_dbi))
 
     # ------------------------------------------------------------- mesh graph
     def mesh_sinr(self, xy, rng, side_m=None, fading=None, channels=None):

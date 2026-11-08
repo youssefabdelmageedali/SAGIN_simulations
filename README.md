@@ -25,6 +25,7 @@ bit-identical `metrics.json` (tested).
 | `sagin/world.py` | the only physics engine: `Params`, `SAGINWorld` (geometry, path loss, fading, SINR, random access, latency, compute, energy) |
 | `experiments/exp1_graph.py` | Exp 1 → `fig2_degree_vs_density.png` |
 | `experiments/exp2_coverage.py` | Exp 2 → `fig3_coverage_vs_distance.png` (incl. no-HAPS ablation), `fig3b_coverage_threshold_sweep.png` |
+| `experiments/exp2b_iot_coverage.py` | Exp 2b → `fig3c_iot_coverage_vs_distance.png`, `fig3d_iot_threshold_sweep.png` (ground IoT sensor) |
 | `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png`, `fig4c_outage_causes.png`, `fig4d_access_delay_vs_iot.png`, `fig4e_ra_failure_vs_iot.png` |
 | `experiments/exp5a_compute.py` | Exp 4 → `fig5a_completion_vs_complexity.png` |
 | `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png`, `fig5d_bits_per_joule.png` |
@@ -47,6 +48,9 @@ bit-identical `metrics.json` (tested).
   same sub-channel interfere. TN uplink: one co-channel IoT user per other cell. HAPS: the co-channel
   user of each other HAPS, through the serving beam's off-axis gain. Satellite: 6 co-channel users of
   other beams at the sidelobe level.
+- **Ground IoT sensor (exp2b).** `SAGINWorld.ground_sensor()` is the same world with the access-link
+  terminal replaced by a sensor at 0 m, 23 dBm, 0 dBi; co-channel HAPS/satellite users are then sensors
+  too. Path loss, fading, interference, deployments and thresholds are exactly those of exp2.
 - **HAPS beam.** Gaussian main lobe, 3 dB width 5°, sidelobe floor −30 dB; 1-D Gaussian pointing error σ_b.
 - **Random access.** Slotted, N_RA resources per tier, success iff decodable (SINR > access threshold)
   and alone on the resource: no other drone and no IoT preamble. Massive-IoT background: active ground
@@ -97,6 +101,8 @@ bit-identical `metrics.json` (tested).
 | BS height / IoT interferer power | 25 m / 20 dBm | **PLACEHOLDERS** |
 | TN BS density / interferer radius | 0.2 per km² (equivalent cell radius 1.26 km) / 300 m | **PLACEHOLDERS** |
 | HAPS count / satellites / sat co-channel users | 3 / 720 / 6 | **PLACEHOLDERS** |
+| Ground IoT sensor Tx power / antenna gain | 23 dBm / 0 dBi | UE power class 3 and omnidirectional 0 dBi: 3GPP TR 36.763 v17.0.0 Table 6.1-1; same as the handheld in TR 38.821 Table 6.1.1.1-3 |
+| Ground IoT sensor height | 0 m | given in the task; **PLACEHOLDER** in the sense that no clutter, building-penetration or body loss is modelled |
 | IoT RA load (preambles / resource / opportunity) | 0 (drone-only); swept 0.1 / 0.5 / 1.0 in exp3 | **PLACEHOLDERS** |
 | PCP mean cluster size / spread | 10 / 100 m | **PLACEHOLDERS** |
 | Mission disk radius / spread (exp3, exp5) | 2 km / 200 m | **PLACEHOLDERS** |
@@ -163,6 +169,15 @@ The machine-readable list is `PLACEHOLDERS` in `sagin/world.py`, copied into `me
 
 Graph, compute and energy models are otherwise unchanged.
 
+## Changes in revision 4 (additions only; no existing model or parameter changed)
+
+1. **Exp 2b, ground IoT coverage.** Same coverage experiment, seeds and geometry as exp2, with a ground
+   sensor as the terminal (23 dBm and 0 dBi from TR 36.763 Table 6.1-1, verified in the document; 0 m
+   height as specified). Same access-threshold sweep (−5, 0, +5 dB).
+2. **Drone antenna-gain sensitivity for exp2**: 0, 3, 10 dBi at 30 dBm (`drone_gain_sweep` in
+   `metrics.json`). 10 dBi is the nominal case.
+All metrics already present in the previous run are bit-identical in this run.
+
 ## Experiment-specific choices
 
 - Exp 1 runs on a torus window (no edge effects) of side clip(√(2000/λ) km, 3, 10), 3 realizations
@@ -176,7 +191,7 @@ Graph, compute and energy models are otherwise unchanged.
 See `results/run_log.txt` and `results/metrics.json`. The summary of the latest run is in
 the section below.
 
-### Latest run (revision 3; seeds 1–5, seed mean)
+### Latest run (revision 4; seeds 1–5, seed mean)
 
 | Metric | Value |
 |---|---|
@@ -186,6 +201,10 @@ the section below.
 | Exp 2 HAPS alone ideal / σ_b = 3° | 0.954 / 0.880 (mean over distance) |
 | Exp 2 satellite alone (3GPP LEO-600 S-band) | 0.996 |
 | Exp 2 hybrid at 10 km ideal / σ_b = 3° / no HAPS | 1.000 / 1.000 / 0.996 |
+| Exp 2 drone gain 0 / 3 / 10 dBi: satellite alone at 10 km | 0.743 / 0.901 / 0.996 |
+| Exp 2 drone gain 0 / 3 / 10 dBi: TN + satellite (no HAPS) at 10 km | 0.743 / 0.901 / 0.996 (hybrid 0.999 / 1.000 / 1.000) |
+| Exp 2b ground sensor at +5 dB, mean over 0–10 km | TN 0.221, HAPS 0.742 (σ_b=3°: 0.471), sat 0.175, hybrid 0.839 (σ_b=3°: 0.663), no HAPS 0.357 |
+| Exp 2b ground sensor at 10 km: hybrid / no HAPS, at −5 / 0 / +5 dB | 1.000 / 0.917, 0.990 / 0.593, 0.806 / 0.174 |
 | Satellite median uplink rate (exp5) | 5.85 Mbit/s over 1.08 MHz (TN 6.53, HAPS 33.29) |
 | Exp 3 latency N=1→50, outage (drone-only) | TN 92.8→146.5 ms, 11.2%; HAPS 22.7→30.3 ms, 8.8%; sat 101.2→108.1 ms, 0.4%; terrestrial-first 86.8→43.3 ms, 0.0%; load-aware 27.8→34.7 ms, 0.0% |
 | Exp 3 high IoT load (1.0) outage / RA failure | TN 16.3% / 2.9%; HAPS 11.4% / 1.3%; sat 3.0% / 1.4%; terrestrial-first 2.7% / 1.5%; load-aware 2.2% / 1.3% |
@@ -194,8 +213,27 @@ the section below.
 | Exp 5 median endurance | raw 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
 | Exp 5 delivered per joule | raw: TN 51036.6, HAPS 260114.3, sat 45695.4 bit/J; edge-AI 15.4 bit/J; captures/kJ raw 0.064 / 0.325 / 0.057, edge-AI 0.769 |
 
-### Known sanity-check failure (not fixed, reported as found)
+### Known sanity-check failures (not fixed, reported as found)
+
+- `tn_non_increasing` (exp2b only): ground-sensor TN coverage rises 0.389 → 0.448 from 0 to 4 km,
+  then collapses beyond the region edge (0.000 from 7.5 km). The sensor link (23 dBm, 0 dBi) is
+  interference-limited, and base stations near the region edge have fewer co-channel IoT interferers
+  around them. A modelling consequence of the finite TN region, not a code bug; the drone (exp2) is
+  noise/distance-limited and its TN curve stays flat within 0.006.
 
 - `naive_monotone_non_decreasing` (exp1 only): one dip 6.062 → 5.879 between 4 and 6 drones/km²,
   Monte Carlo noise at low density (only 15 realizations per density). Same seeds and geometry as the
   previous runs; a 60-realization re-check showed the step increasing.
+
+## Claims (revision 4)
+
+| Claim | Verdict | Numbers |
+|---|---|---|
+| (a) SG graph saturates while distance rule grows | holds | SG degree peaks 8.762 at 4/km², falls to 6.061 at 250/km² (−30.8%); distance rule 5.481 → 31.229 |
+| (b) HAPS is needed for coverage (drones) | does not hold for the 10 dBi UAV | satellite alone 0.996, TN + sat 0.996–0.999 at every distance; with a 0 dBi drone TN + sat drops to 0.743 at 10 km (hybrid 0.999), 3 dBi: 0.901 |
+| (c) HAPS is needed for latency/throughput | holds at nominal bandwidths; a bandwidth effect | all-HAPS 22.7→30.3 ms vs satellite 101.2→108.1 ms; HAPS median 33.29 Mbit/s vs TN 6.53, sat 5.85; at equal 5 MHz satellite gives 36.4→43.4 ms |
+| (d) coordination prevents congestion collapse | does not hold | no collapse drone-only (RA failure 0.0% for all policies, 50 drones on 12 TN resources); at high IoT load congestion outage (RA failure + over limit) load-aware 2.2% vs all-HAPS 2.1% |
+| (e) cooperation beats solo | holds | 91.0% vs 0% completion at 2000 GFLOP |
+| (f) edge-AI is needed for data delivery | holds (if the 0.02 Mbit report carries the needed information) | raw feasible for 0.0% of drones on every tier; ≤ 41.6% of raw delivered (HAPS); report feasible 99.8–100% |
+| (g) edge-AI saves energy | does not hold | endurance edge-AI 68.3 min vs raw 69.4 min |
+| (h) HAPS is needed for coverage of ground IoT sensors | holds; margin shrinks as the threshold is relaxed | at +5 dB, 10 km: hybrid 0.806 vs TN + sat 0.174 (mean over distance 0.839 vs 0.357); at 0 dB: 0.990 vs 0.593; at −5 dB: 1.000 vs 0.917; with σ_b = 3° hybrid is 0.572 at 10 km (+5 dB) |
