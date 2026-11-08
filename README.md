@@ -4,10 +4,12 @@ Simulation for "A Unified SAGIN Architecture for Autonomous Drone Swarms and Mas
 Central claim under test: the communication graph is **derived from SINR**
 (edge i→j iff SINR_ij > γ_th), not assumed from distance.
 
-## FROZEN MODEL (v1.1)
+## FROZEN MODEL (v1.2)
 
 This is the model version the paper cites. v1.0 (commit `59d1aad`) froze Exp 1–5 and 2b; v1.1 adds
-Exp 2c (drones as aerial IoT gateways) with new parameters only — every v1.0 result is bit-identical. Every `Params` field, its value and its
+Exp 2c (drones as aerial IoT gateways) with new parameters only — every v1.0 result is bit-identical.
+v1.2 adds the Exp 2c sensor → drone reuse sensitivity (no new `Params`; every v1.1 number is
+bit-identical, only the strict density-trend check changes). Every `Params` field, its value and its
 source. "Task specification" = given in the original simulation brief without a further reference;
 "assumption, no citation" = a modelling value with no citable source; **PLACEHOLDER** = not
 literature-matched, listed in `PLACEHOLDERS` (`sagin/world.py`) and in `metrics.json`. 3GPP values were
@@ -132,7 +134,7 @@ bit-identical `metrics.json` (tested).
 | `experiments/exp1_graph.py` | Exp 1 → `fig2_degree_vs_density.png` |
 | `experiments/exp2_coverage.py` | Exp 2 → two-panel `fig3_coverage_vs_distance.png` ((a) drones, (b) sensors, incl. no-HAPS ablation) and two-panel `fig3b_coverage_threshold_sweep.png` |
 | `experiments/exp2b_iot_coverage.py` | Exp 2b → panel (b) of `fig3_coverage_vs_distance.png` and `fig3b_coverage_threshold_sweep.png` (ground IoT sensor) |
-| `experiments/exp2c_drone_gateway.py` | Exp 2c → `fig3c_drone_gateway.png` (drones as aerial IoT gateways, three densities) |
+| `experiments/exp2c_drone_gateway.py` | Exp 2c → `fig3c_drone_gateway.png` (drones as aerial IoT gateways, three densities), `fig3d_drone_gateway_reuse.png` (sub-channel reuse sensitivity) |
 | `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png`, `fig4c_outage_causes.png`, `fig4d_access_delay_vs_iot.png`, `fig4e_ra_failure_vs_iot.png` |
 | `experiments/exp5a_compute.py` | Exp 4 → `fig5a_completion_vs_complexity.png` |
 | `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png`, `fig5d_bits_per_joule.png` |
@@ -598,6 +600,67 @@ zero and falls slightly with density (0.006 → 0.005 → 0.000 averaged over di
 `via_drone_non_decreasing_in_density` check passes only within its 0.01 tolerance. The latency is
 dominated by sending 0.5 Mbit over 1 MHz at an SINR just above the threshold (≈ 220 ms).
 
+## Changes in v1.2: Exp 2c sensor → drone reuse sensitivity (addition only)
+
+**Model.** The 1 MHz sensor → drone band is split into K orthogonal sub-channels of 1 MHz / K
+(K = 1, 4, 8, 16), so noise power and Shannon rate scale with 1/K. Each drone uses one sub-channel:
+either chosen uniformly at random, or by nearest-neighbour colouring (K = 4, 8: greedy colouring of the
+symmetric (K − 1)-nearest-neighbour graph, drones in index order, so adjacent drones never share a
+sub-channel; residual conflicts 2.67 / 2.49 / 1.94% of drones for K = 4 and 0.70 / 0.57 / 0.30% for K = 8
+at 2 / 10 / 50 drones/km²). Only sensors served by drones on the same sub-channel interfere.
+Everything else is as in v1.1; K = 1 is the v1.1 run itself.
+
+- **Basis.** 3GPP TR 36.763 v17.0.0 Table 6.1-1 (read in this project): the NB-IoT uplink uses
+  "up to 180 kHz with all permissible smaller resource allocations 12*15 kHz, 6*15 kHz, 3*15 kHz,
+  1*15 kHz, 1*3.75 kHz", i.e. an uplink carrier split into orthogonal sub-allocations. **PLACEHOLDER**:
+  the sub-channel sizes 1 MHz / K (250 / 125 / 62.5 kHz) are not NB-IoT allocation sizes; the random
+  choice and the nearest-neighbour colouring rule are modelling choices with no 3GPP source read here.
+- **Sample size.** K > 1 cases use 150 realizations per seed (750 per density) instead of 500.
+
+**Results** (via-drone coverage at 0 / 2 / 5 / 10 km; median sensor → drone SINR; via-drone latency
+median; drones on top of the hybrid and no-HAPS + drones − hybrid, both at 0 / 2 / 5 / 10 km):
+
+| Reuse | Density | Via drone | SINR | Latency | On top of hybrid | No-HAPS + drones − hybrid |
+|---|---|---|---|---|---|---|
+| K = 1 | 2 | 0.010 / 0.006 / 0.006 / 0.007 | −20.1 dB | 223.9 ms | +0.001 / +0.000 / +0.000 / +0.000 | −0.193 / −0.122 / −0.369 / −0.343 |
+| K = 1 | 10 | 0.006 / 0.005 / 0.003 / 0.003 | −14.7 dB | 229.8 ms | +0.000 / +0.000 / +0.000 / +0.000 | −0.195 / −0.110 / −0.345 / −0.343 |
+| K = 1 | 50 | 0.000 / 0.000 / 0.000 / 0.000 | −13.3 dB | 248.9 ms | +0.000 / +0.000 / +0.000 / +0.000 | −0.192 / −0.130 / −0.355 / −0.330 |
+| K = 4 random | 2 | 0.085 / 0.047 / 0.045 / 0.068 | −10.7 dB | 681.5 ms | +0.001 / +0.001 / +0.004 / +0.009 | −0.200 / −0.101 / −0.355 / −0.299 |
+| K = 4 random | 10 | 0.052 / 0.072 / 0.047 / 0.061 | −7.7 dB | 768.2 ms | +0.001 / +0.000 / +0.007 / +0.004 | −0.189 / −0.112 / −0.340 / −0.331 |
+| K = 4 random | 50 | 0.027 / 0.027 / 0.027 / 0.021 | −7.0 dB | 846.1 ms | +0.001 / +0.000 / +0.003 / +0.000 | −0.191 / −0.113 / −0.360 / −0.323 |
+| K = 8 random | 2 | 0.164 / 0.120 / 0.128 / 0.208 | −5.5 dB | 1256.6 ms | +0.007 / +0.003 / +0.011 / +0.031 | −0.185 / −0.087 / −0.317 / −0.251 |
+| K = 8 random | 10 | 0.128 / 0.159 / 0.131 / 0.159 | −4.0 dB | 1399.7 ms | +0.008 / +0.003 / +0.013 / +0.027 | −0.169 / −0.097 / −0.300 / −0.275 |
+| K = 8 random | 50 | 0.091 / 0.088 / 0.075 / 0.080 | −3.8 dB | 1559.0 ms | +0.003 / +0.000 / +0.005 / +0.003 | −0.175 / −0.103 / −0.336 / −0.301 |
+| K = 16 random | 2 | 0.289 / 0.247 / 0.285 / 0.384 | −0.5 dB | 2336.2 ms | +0.011 / +0.007 / +0.025 / +0.057 | −0.155 / −0.068 / −0.245 / −0.156 |
+| K = 16 random | 10 | 0.271 / 0.267 / 0.243 / 0.317 | −0.2 dB | 2533.4 ms | +0.020 / +0.005 / +0.023 / +0.044 | −0.133 / −0.083 / −0.247 / −0.195 |
+| K = 16 random | 50 | 0.245 / 0.216 / 0.216 / 0.200 | −0.4 dB | 2912.3 ms | +0.009 / +0.005 / +0.017 / +0.015 | −0.141 / −0.083 / −0.283 / −0.249 |
+| K = 4 colouring | 2 | 0.083 / 0.040 / 0.073 / 0.064 | −10.2 dB | 684.4 ms | +0.004 / +0.003 / +0.008 / +0.004 | −0.173 / −0.105 / −0.359 / −0.316 |
+| K = 4 colouring | 10 | 0.073 / 0.080 / 0.068 / 0.079 | −7.2 dB | 757.5 ms | +0.005 / +0.005 / +0.003 / +0.009 | −0.169 / −0.101 / −0.317 / −0.319 |
+| K = 4 colouring | 50 | 0.025 / 0.027 / 0.020 / 0.023 | −7.0 dB | 833.4 ms | +0.000 / +0.003 / +0.004 / +0.004 | −0.181 / −0.136 / −0.355 / −0.336 |
+| K = 8 colouring | 2 | 0.169 / 0.147 / 0.164 / 0.204 | −4.2 dB | 1258.8 ms | +0.009 / +0.008 / +0.013 / +0.029 | −0.149 / −0.092 / −0.315 / −0.240 |
+| K = 8 colouring | 10 | 0.172 / 0.191 / 0.139 / 0.188 | −3.1 dB | 1386.8 ms | +0.008 / +0.008 / +0.007 / +0.021 | −0.148 / −0.088 / −0.279 / −0.265 |
+| K = 8 colouring | 50 | 0.076 / 0.088 / 0.079 / 0.076 | −3.8 dB | 1554.4 ms | +0.004 / +0.007 / +0.005 / +0.015 | −0.171 / −0.124 / −0.324 / −0.312 |
+
+(Densities in drones/km². Direct-path latency is ≈ 39 ms median in every case.)
+
+- Orthogonal reuse raises the via-drone hop from SINR ≈ −13 to −20 dB (K = 1) to ≈ −0.2 to −0.5 dB (K = 16)
+  and via-drone coverage from ≤ 0.010 to 0.20–0.38, but the median SINR stays below the +5 dB threshold
+  in every case and the narrower sub-channel stretches the 0.5 Mbit hop to 1.3–2.9 s (K = 8–16).
+- Nearest-neighbour colouring vs random reuse at the same K: −0.015 to +0.044 per point; averaged over
+  0–10 km +0.000 to +0.024 (largest at K = 8, 10 drones/km²), i.e. a small gain, comparable to the
+  Monte Carlo uncertainty of 750 realizations, and none at 50 drones/km².
+- Higher density still lowers via-drone coverage at every K (K = 16: 0.29 → 0.27 → 0.22 at 0 km).
+- Drones add at most +0.057 on top of the hybrid (K = 16, 2 drones/km², 10 km); no-HAPS + drones stays
+  0.068–0.369 below the hybrid in every case.
+
+**Density-trend check fixed.** `via_drone_non_decreasing_in_density` previously passed with a 0.01
+tolerance that hid a decrease. It now allows each density step to fall by at most 3 binomial standard
+errors of the pooled means (52,500 samples per density) and logs the trend: via-drone coverage (K = 1,
+mean over 0–10 km) 0.0059 / 0.0046 / 0.0005 at 2 / 10 / 50 drones/km², steps −0.0013 (flat within 3 SE)
+and −0.0041 (decreasing, SE 0.0003) → the check now **fails**. The pytest version uses the same rule
+(3 SE, no fixed floor) on 1,800 samples per density; at that size it cannot resolve steps this small and
+passes, so the full-run check is the one that reports the decrease.
+
 ## Experiment-specific choices
 
 - Exp 1 runs on a torus window (no edge effects) of side clip(√(2000/λ) km, 3, 10), 3 realizations
@@ -611,7 +674,7 @@ dominated by sending 0.5 Mbit over 1 MHz at an SINR just above the threshold (�
 See `results/run_log.txt` and `results/metrics.json`. The summary of the latest run is in
 the section below.
 
-### Latest run (v1.1; seeds 1–5, seed mean)
+### Latest run (v1.2; seeds 1–5, seed mean)
 
 | Metric | Value |
 |---|---|
@@ -627,6 +690,7 @@ the section below.
 | Exp 3, HAPS RA 16, drone-only: latency at N=50 | HAPS 56.4 ms; terrestrial-first 43.0 ms; load-aware (conservative) 52.4 ms; load-aware 43.1 ms |
 | Exp 3, HAPS RA 16, high IoT load: outage (RA failure + over limit), latency at N=50 | TN 5.4% (5.4%), 259.2 ms; HAPS 4.3% (4.3%), 209.5 ms; sat 2.9% (2.5%), 181.1 ms; terrestrial-first 3.4% (3.4%), 161.6 ms; load-aware (conservative) 2.3% (2.3%), 138.1 ms; load-aware 2.8% (2.8%), 137.4 ms |
 | Exp 2c via drone (sensor → drone → TN/HAPS/sat), mean over 0–10 km at 2 / 10 / 50 drones/km² | 0.006 / 0.005 / 0.000; drones add ≤ +0.001 on top of the hybrid; no-HAPS + drones is 0.11–0.37 below the hybrid |
+| Exp 2c reuse sensitivity: via drone, mean over 0–10 km, K = 1 / 4 / 8 / 16 random at 10 drones/km² | ≈ 0.005 / 0.06 / 0.14 / 0.27; via latency median 230 / 768 / 1400 / 2533 ms |
 | Exp 4 coop completion at 1000 / 2000 GFLOP | 98.2% / 91.0% (solo: step at 470 GFLOP) |
 | Exp 5 raw streaming | needs 80 Mbit/s; feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS) |
 | Exp 5 median endurance | raw 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
@@ -636,11 +700,14 @@ the section below.
 - `tn_non_increasing` and `tn_max_at_hub` (exp2b), test `test_tn_coverage_maximal_at_hub` (sensor
   case): sensor TN 0.697 at the hub, peak 0.834 at 2.5 km. Physical with α = 1 power control in a
   reuse-1 core (revision 8). Drone TN passes both checks.
+- `via_drone_non_decreasing_in_density` (exp2c): via-drone coverage falls with density (0.0059 →
+  0.0046 → 0.0005, last step −0.0041 vs SE 0.0003). Physical: more drones bring the serving drone
+  closer but add co-channel interferers in proportion (see v1.1 / v1.2 sections).
 - `naive_monotone_non_decreasing` (exp1 only): one dip 6.062 → 5.879 between 4 and 6 drones/km²,
   Monte Carlo noise at low density (only 15 realizations per density). A 60-realization re-check
   showed the step increasing.
 
-## Claims (v1.1)
+## Claims (v1.2)
 
 | Claim | Verdict | Numbers |
 |---|---|---|
@@ -652,4 +719,4 @@ the section below.
 | (f) edge-AI is needed for data delivery | holds (if the 0.02 Mbit report carries the needed information) | raw feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS); report feasible 100% |
 | (g) edge-AI saves energy | does not hold | endurance edge-AI 68.3 min vs raw 69.4 min |
 | (h) HAPS is needed for coverage of ground IoT sensors | holds at +5 and 0 dB; small margin at −5 dB | +5 dB, hybrid vs TN + sat: 0.950 vs 0.746 at the hub, 0.971 vs 0.853 at 2 km, 0.908 vs 0.540 at 5 km, 0.877 vs 0.538 at 10 km (σ_b = 3°: 0.744 at 10 km). 10 km at 0 dB: 0.996 vs 0.857; −5 dB: 1.000 vs 0.987 |
-| (i) drones as aerial IoT gateways extend sensor coverage or replace the HAPS | does not hold | via-drone coverage 0.000–0.010 at every distance and density; on top of the hybrid +0.000 to +0.001; no-HAPS + drones vs hybrid −0.110 to −0.369 (at 10 km: −0.343 / −0.343 / −0.330 at 2 / 10 / 50 drones/km²). Cause: co-channel LoS interference at the drone (median SINR −13 to −23 dB), not range or backhaul. Via-drone latency 224–249 ms median vs 39 ms direct |
+| (i) drones as aerial IoT gateways extend sensor coverage or replace the HAPS | does not hold; orthogonal reuse helps the drone hop but not enough | K = 1 (shared 1 MHz): via-drone ≤ 0.010, +0.000–0.001 on top of the hybrid. With K = 16 orthogonal sub-channels via-drone coverage rises to 0.20–0.38 (median hop SINR −0.2 to −0.5 dB) but adds at most +0.057 on top of the hybrid, and no-HAPS + drones stays 0.068–0.369 below the hybrid at every K and density (K = 16, 10 drones/km², 10 km: −0.195). Nearest-neighbour colouring adds +0.000 to +0.024 over random reuse (mean over 0–10 km). Via-drone latency 224–249 ms (K = 1) to 2.3–2.9 s (K = 16) vs ≈ 39 ms direct. More drones lower via-drone coverage at every K |

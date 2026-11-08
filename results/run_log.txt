@@ -1,11 +1,11 @@
-===== exp1 (fig2) 68s
+===== exp1 (fig2) 61s
 SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
 SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
 Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
 check sg_peaks_before_max_density: True
 check naive_monotone_non_decreasing: False
 
-===== exp2 (fig3) 108s
+===== exp2 (fig3) 109s
 drones: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
   tn           : 1.000 / 1.000 / 1.000 / 0.996 / 0.950 / 0.971   (mean over 0-10 km 0.976)
   haps_ideal   : 1.000 / 1.000 / 1.000 / 1.000 / 1.000 / 0.998   (mean over 0-10 km 1.000)
@@ -82,7 +82,8 @@ ground IoT sensors: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
     hybrid_err    full load: 0.743 / 0.771 / 0.838 / 0.802 / 0.773 / 0.739
     no_haps       full load: 0.459 / 0.518 / 0.661 / 0.583 / 0.531 / 0.531
 
-===== exp2c (fig3c) 310s
+===== exp2c (fig3c) 929s
+via-drone coverage vs density (mean over 0-10 km, pooled over seeds): 2/km^2 0.0059 (SE 0.0003), 10/km^2 0.0046 (SE 0.0003), 50/km^2 0.0005 (SE 0.0001); steps: -0.0013 (flat (within 3 SE)), -0.0041 (decreasing)
 sensor -> nearest drone (TR 36.777 UMa-AV in the core, RMa-AV outside; 1 MHz; co-channel activity 0.393); backhaul with the drone radio (30 dBm, 10 dBi)
 drone density low (2/km^2): coverage at 0 / 2 / 5 / 10 km
   direct_hybrid     : 0.942 / 0.970 / 0.898 / 0.880   (mean 0.918)
@@ -94,6 +95,7 @@ drone density low (2/km^2): coverage at 0 / 2 / 5 / 10 km
   drones on top of hybrid (combined - direct hybrid): +0.001 / +0.000 / +0.000 / +0.000
   no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.193 / -0.122 / -0.369 / -0.343
   latency median (covered samples): via drone 223.9 ms (p95 266.3), direct best tier 39.4 ms (p95 166.9)
+  median sensor -> drone SINR -20.1 dB
 drone density nominal (10/km^2): coverage at 0 / 2 / 5 / 10 km
   direct_hybrid     : 0.948 / 0.966 / 0.893 / 0.885   (mean 0.918)
   direct_no_haps    : 0.750 / 0.856 / 0.547 / 0.540   (mean 0.634)
@@ -104,6 +106,7 @@ drone density nominal (10/km^2): coverage at 0 / 2 / 5 / 10 km
   drones on top of hybrid (combined - direct hybrid): +0.000 / +0.000 / +0.000 / +0.000
   no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.195 / -0.110 / -0.345 / -0.343
   latency median (covered samples): via drone 229.8 ms (p95 264.1), direct best tier 39.3 ms (p95 164.3)
+  median sensor -> drone SINR -14.7 dB
 drone density high (50/km^2): coverage at 0 / 2 / 5 / 10 km
   direct_hybrid     : 0.944 / 0.968 / 0.912 / 0.875   (mean 0.920)
   direct_no_haps    : 0.752 / 0.838 / 0.557 / 0.545   (mean 0.633)
@@ -114,10 +117,30 @@ drone density high (50/km^2): coverage at 0 / 2 / 5 / 10 km
   drones on top of hybrid (combined - direct hybrid): +0.000 / +0.000 / +0.000 / +0.000
   no-HAPS + drones vs hybrid (combined_no_haps - direct hybrid): -0.192 / -0.130 / -0.355 / -0.330
   latency median (covered samples): via drone 248.9 ms (p95 267.0), direct best tier 39.5 ms (p95 167.5)
+  median sensor -> drone SINR -13.3 dB
+orthogonal reuse of the 1 MHz sensor -> drone band (K sub-channels of 1000/K kHz; 150 realizations per seed, K = 1 from the main run):
+  K1_random      low     (2/km^2): via drone 0.010 / 0.006 / 0.006 / 0.007 at 0 / 2 / 5 / 10 km; hop-1 SINR median -20.1 dB; on top of hybrid +0.001 / +0.000 / +0.000 / +0.000; no-HAPS+drones - hybrid -0.193 / -0.122 / -0.369 / -0.343; via latency median 223.9 ms
+  K1_random      nominal (10/km^2): via drone 0.006 / 0.005 / 0.003 / 0.003 at 0 / 2 / 5 / 10 km; hop-1 SINR median -14.7 dB; on top of hybrid +0.000 / +0.000 / +0.000 / +0.000; no-HAPS+drones - hybrid -0.195 / -0.110 / -0.345 / -0.343; via latency median 229.8 ms
+  K1_random      high    (50/km^2): via drone 0.000 / 0.000 / 0.000 / 0.000 at 0 / 2 / 5 / 10 km; hop-1 SINR median -13.3 dB; on top of hybrid +0.000 / +0.000 / +0.000 / +0.000; no-HAPS+drones - hybrid -0.192 / -0.130 / -0.355 / -0.330; via latency median 248.9 ms
+  K4_random      low     (2/km^2): via drone 0.085 / 0.047 / 0.045 / 0.068 at 0 / 2 / 5 / 10 km; hop-1 SINR median -10.7 dB; on top of hybrid +0.001 / +0.001 / +0.004 / +0.009; no-HAPS+drones - hybrid -0.200 / -0.101 / -0.355 / -0.299; via latency median 681.5 ms
+  K4_random      nominal (10/km^2): via drone 0.052 / 0.072 / 0.047 / 0.061 at 0 / 2 / 5 / 10 km; hop-1 SINR median -7.7 dB; on top of hybrid +0.001 / +0.000 / +0.007 / +0.004; no-HAPS+drones - hybrid -0.189 / -0.112 / -0.340 / -0.331; via latency median 768.2 ms
+  K4_random      high    (50/km^2): via drone 0.027 / 0.027 / 0.027 / 0.021 at 0 / 2 / 5 / 10 km; hop-1 SINR median -7.0 dB; on top of hybrid +0.001 / +0.000 / +0.003 / +0.000; no-HAPS+drones - hybrid -0.191 / -0.113 / -0.360 / -0.323; via latency median 846.1 ms
+  K8_random      low     (2/km^2): via drone 0.164 / 0.120 / 0.128 / 0.208 at 0 / 2 / 5 / 10 km; hop-1 SINR median -5.5 dB; on top of hybrid +0.007 / +0.003 / +0.011 / +0.031; no-HAPS+drones - hybrid -0.185 / -0.087 / -0.317 / -0.251; via latency median 1256.6 ms
+  K8_random      nominal (10/km^2): via drone 0.128 / 0.159 / 0.131 / 0.159 at 0 / 2 / 5 / 10 km; hop-1 SINR median -4.0 dB; on top of hybrid +0.008 / +0.003 / +0.013 / +0.027; no-HAPS+drones - hybrid -0.169 / -0.097 / -0.300 / -0.275; via latency median 1399.7 ms
+  K8_random      high    (50/km^2): via drone 0.091 / 0.088 / 0.075 / 0.080 at 0 / 2 / 5 / 10 km; hop-1 SINR median -3.8 dB; on top of hybrid +0.003 / +0.000 / +0.005 / +0.003; no-HAPS+drones - hybrid -0.175 / -0.103 / -0.336 / -0.301; via latency median 1559.0 ms
+  K16_random     low     (2/km^2): via drone 0.289 / 0.247 / 0.285 / 0.384 at 0 / 2 / 5 / 10 km; hop-1 SINR median -0.5 dB; on top of hybrid +0.011 / +0.007 / +0.025 / +0.057; no-HAPS+drones - hybrid -0.155 / -0.068 / -0.245 / -0.156; via latency median 2336.2 ms
+  K16_random     nominal (10/km^2): via drone 0.271 / 0.267 / 0.243 / 0.317 at 0 / 2 / 5 / 10 km; hop-1 SINR median -0.2 dB; on top of hybrid +0.020 / +0.005 / +0.023 / +0.044; no-HAPS+drones - hybrid -0.133 / -0.083 / -0.247 / -0.195; via latency median 2533.4 ms
+  K16_random     high    (50/km^2): via drone 0.245 / 0.216 / 0.216 / 0.200 at 0 / 2 / 5 / 10 km; hop-1 SINR median -0.4 dB; on top of hybrid +0.009 / +0.005 / +0.017 / +0.015; no-HAPS+drones - hybrid -0.141 / -0.083 / -0.283 / -0.249; via latency median 2912.3 ms
+  K4_colouring   low     (2/km^2): via drone 0.083 / 0.040 / 0.073 / 0.064 at 0 / 2 / 5 / 10 km; hop-1 SINR median -10.2 dB; on top of hybrid +0.004 / +0.003 / +0.008 / +0.004; no-HAPS+drones - hybrid -0.173 / -0.105 / -0.359 / -0.316; via latency median 684.4 ms; colouring conflicts 2.67% of drones
+  K4_colouring   nominal (10/km^2): via drone 0.073 / 0.080 / 0.068 / 0.079 at 0 / 2 / 5 / 10 km; hop-1 SINR median -7.2 dB; on top of hybrid +0.005 / +0.005 / +0.003 / +0.009; no-HAPS+drones - hybrid -0.169 / -0.101 / -0.317 / -0.319; via latency median 757.5 ms; colouring conflicts 2.49% of drones
+  K4_colouring   high    (50/km^2): via drone 0.025 / 0.027 / 0.020 / 0.023 at 0 / 2 / 5 / 10 km; hop-1 SINR median -7.0 dB; on top of hybrid +0.000 / +0.003 / +0.004 / +0.004; no-HAPS+drones - hybrid -0.181 / -0.136 / -0.355 / -0.336; via latency median 833.4 ms; colouring conflicts 1.94% of drones
+  K8_colouring   low     (2/km^2): via drone 0.169 / 0.147 / 0.164 / 0.204 at 0 / 2 / 5 / 10 km; hop-1 SINR median -4.2 dB; on top of hybrid +0.009 / +0.008 / +0.013 / +0.029; no-HAPS+drones - hybrid -0.149 / -0.092 / -0.315 / -0.240; via latency median 1258.8 ms; colouring conflicts 0.70% of drones
+  K8_colouring   nominal (10/km^2): via drone 0.172 / 0.191 / 0.139 / 0.188 at 0 / 2 / 5 / 10 km; hop-1 SINR median -3.1 dB; on top of hybrid +0.008 / +0.008 / +0.007 / +0.021; no-HAPS+drones - hybrid -0.148 / -0.088 / -0.279 / -0.265; via latency median 1386.8 ms; colouring conflicts 0.57% of drones
+  K8_colouring   high    (50/km^2): via drone 0.076 / 0.088 / 0.079 / 0.076 at 0 / 2 / 5 / 10 km; hop-1 SINR median -3.8 dB; on top of hybrid +0.004 / +0.007 / +0.005 / +0.015; no-HAPS+drones - hybrid -0.171 / -0.124 / -0.324 / -0.312; via latency median 1554.4 ms; colouring conflicts 0.30% of drones
 check combined_ge_components: True
-check via_drone_non_decreasing_in_density: True
+check via_drone_non_decreasing_in_density: False
 
-===== exp3 (fig4) 110s
+===== exp3 (fig4) 111s
 drone-only random access (no IoT preambles), co-channel activity 0.393, nominal bandwidths and threshold:
   all_tn   : 38.4 -> 93.2 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
   all_haps : 19.1 -> 25.9 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
