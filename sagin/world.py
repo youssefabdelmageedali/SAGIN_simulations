@@ -119,7 +119,7 @@ class Params:
     p_flight_w: float = 120.0
     p_compute_w: float = 10.0
     p_tx_w: float = 8.0
-    raw_mbit: float = 800.0
+    raw_mbit: float = 600.0  # 4K video at 60 Mbit/s (DJI Matrice 4E, H.264 max) x 10 s capture interval
     packet_mbit: float = 0.5
     report_mbit: float = 0.02
     capture_interval_s: float = 10.0
@@ -172,7 +172,6 @@ PLACEHOLDERS = {
     "max_helpers": "helpers per task",
     "chunk_overhead_mbit": "per-helper transfer overhead",
     "p_tx_w": "radio transmit power draw",
-    "raw_mbit": "raw sensor payload per capture",
     "packet_mbit": "uplink packet size (exp3)",
     "report_mbit": "edge-AI report size",
     "capture_interval_s": "capture cycle length",

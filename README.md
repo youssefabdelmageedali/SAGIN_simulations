@@ -4,11 +4,12 @@ Simulation for "A Unified SAGIN Architecture for Autonomous Drone Swarms and Mas
 Central claim under test: the communication graph is **derived from SINR**
 (edge i→j iff SINR_ij > γ_th), not assumed from distance.
 
-## FROZEN MODEL (v1.2)
+## FROZEN MODEL (v1.3)
 
 This is the model version the paper cites. v1.0 (commit `59d1aad`) froze Exp 1–5 and 2b; v1.1 adds
 Exp 2c (drones as aerial IoT gateways) with new parameters only — every v1.0 result is bit-identical.
-v1.2 adds the Exp 2c sensor → drone reuse sensitivity (no new `Params`; every v1.1 number is
+v1.3 replaces the raw-payload PLACEHOLDER with a sourced bitrate (Exp 5 only; all other results
+bit-identical) and adds a raw-bitrate sweep. v1.2 adds the Exp 2c sensor → drone reuse sensitivity (no new `Params`; every v1.1 number is
 bit-identical, only the strict density-trend check changes). Every `Params` field, its value and its
 source. "Task specification" = given in the original simulation brief without a further reference;
 "assumption, no citation" = a modelling value with no citable source; **PLACEHOLDER** = not
@@ -88,7 +89,7 @@ Seeds 1–5; same seeds reproduce `results/metrics.json` bit for bit.
 | `p_flight_w` | 120 | literature-based (task specification) |
 | `p_compute_w` | 10 | literature-based (task specification) |
 | `p_tx_w` | 8 | **PLACEHOLDER** — radio transmit power draw |
-| `raw_mbit` | 800 | **PLACEHOLDER** — raw sensor payload per capture |
+| `raw_mbit` | 600 | 4K video at 60 Mbit/s × 10 s capture interval: DJI Matrice 4E H.264 maximum bitrate (H.265: 40 Mbit/s), value as supplied for v1.3; the DJI spec page was not reachable from this session, so it was not re-read |
 | `packet_mbit` | 0.5 | **PLACEHOLDER** — uplink packet size (exp3) |
 | `report_mbit` | 0.02 | **PLACEHOLDER** — edge-AI report size |
 | `capture_interval_s` | 10 | **PLACEHOLDER** — capture cycle length |
@@ -137,7 +138,7 @@ bit-identical `metrics.json` (tested).
 | `experiments/exp2c_drone_gateway.py` | Exp 2c → `fig3c_drone_gateway.png` (drones as aerial IoT gateways, three densities), `fig3d_drone_gateway_reuse.png` (sub-channel reuse sensitivity) |
 | `experiments/exp3_latency.py` | Exp 3 → `fig4_latency_vs_density.png`, `fig4b_latency_equal_bw.png`, `fig4c_outage_causes.png`, `fig4d_access_delay_vs_iot.png`, `fig4e_ra_failure_vs_iot.png` |
 | `experiments/exp5a_compute.py` | Exp 4 → `fig5a_completion_vs_complexity.png` |
-| `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png`, `fig5d_bits_per_joule.png` |
+| `experiments/exp5b_energy.py` | Exp 5 → `fig5b_battery_vs_time.png`, `fig5c_raw_backlog.png`, `fig5d_bits_per_joule.png`, `fig5e_captures_per_kj_vs_raw_rate.png` |
 | `experiments/common.py` | plotting style, colours, seeding (no physics) |
 | `run_all.py` | runs everything, writes log + metrics |
 | `tests/test_world.py` | the 8 spec sanity tests + 3GPP calibration, IoT-load, TN-max-at-hub, region-size and HAPS-nadir tests |
@@ -217,7 +218,7 @@ bit-identical `metrics.json` (tested).
 | Task deadline | 1 s | **PLACEHOLDER** |
 | Battery | 148 Wh | ≈ DJI Matrice 4D 149.9 Wh |
 | Flight / compute / Tx power | 120 / 10 / 8 W | flight, compute: literature-based; Tx **PLACEHOLDER** |
-| Payload raw / packet / report | 800 / 0.5 / 0.02 Mbit | **PLACEHOLDERS** |
+| Payload raw / packet / report | 600 / 0.5 / 0.02 Mbit | raw: 4K video 60 Mbit/s × 10 s (DJI Matrice 4E H.264, as supplied; v1.3); packet, report: **PLACEHOLDERS** |
 | Capture interval | 10 s | **PLACEHOLDER** |
 | Shadowing std (HAPS/sat) | 4 dB | **PLACEHOLDER** |
 | HAPS beamwidth / sidelobe floor / σ_b | 5° / −30 dB / 3° | **PLACEHOLDERS** (σ_b = 3° from the spec) |
@@ -661,6 +662,43 @@ and −0.0041 (decreasing, SE 0.0003) → the check now **fails**. The pytest ve
 (3 SE, no fixed floor) on 1,800 samples per density; at that size it cannot resolve steps this small and
 passes, so the full-run check is the one that reports the decrease.
 
+## Changes in v1.3: Exp 5 raw payload grounded in a video bitrate
+
+**Change.** The raw payload PLACEHOLDER (800 Mbit per capture, i.e. 80 Mbit/s) is replaced by 4K video
+at 60 Mbit/s, the DJI Matrice 4E H.264 maximum (H.265: 40 Mbit/s), i.e. 600 Mbit per 10 s capture
+interval. Source as supplied for v1.3; `dji.com` / `enterprise.dji.com` could not be reached from this
+session, so the spec page was not re-read here. Nothing else changes: only Exp 5 uses `raw_mbit`, and all
+other experiments are bit-identical. A sweep of the raw bitrate (20 / 40 / 60 / 80 Mbit/s, i.e. 200 / 400 /
+600 / 800 Mbit per capture) uses the same drones and achievable rates; 80 Mbit/s reproduces the previous
+800 Mbit results exactly. "Processed captures per kJ" = fraction of one capture's information delivered
+per cycle ÷ cycle energy (raw: share of the raw data delivered; edge-AI: the 0.02 Mbit report, which is
+delivered for 100% of drones on every tier).
+
+**Raw bitrate sweep** (mean over seeds of: share of drones for which raw streaming is feasible, i.e.
+achievable rate ≥ required; share of raw data delivered; median endurance; median processed captures/kJ):
+
+| Raw bitrate | Tier | Feasible | Delivered | Endurance | Captures/kJ |
+|---|---|---|---|---|---|
+| 20 Mbit/s | TN | 12.8% | 79.7% | 69.4 min | 0.633 |
+| 20 Mbit/s | HAPS | 100.0% | 100.0% | 71.7 min | 0.807 |
+| 20 Mbit/s | satellite | 0.0% | 31.1% | 69.4 min | 0.242 |
+| 40 Mbit/s (H.265 4K) | TN | 0.0% | 40.4% | 69.4 min | 0.316 |
+| 40 Mbit/s (H.265 4K) | HAPS | 56.2% | 94.6% | 69.5 min | 0.783 |
+| 40 Mbit/s (H.265 4K) | satellite | 0.0% | 15.5% | 69.4 min | 0.121 |
+| 60 Mbit/s (H.264 4K, nominal) | TN | 0.0% | 26.9% | 69.4 min | 0.211 |
+| 60 Mbit/s (H.264 4K, nominal) | HAPS | 0.3% | 68.5% | 69.4 min | 0.535 |
+| 60 Mbit/s (H.264 4K, nominal) | satellite | 0.0% | 10.4% | 69.4 min | 0.081 |
+| 80 Mbit/s | TN | 0.0% | 20.2% | 69.4 min | 0.158 |
+| 80 Mbit/s | HAPS | 0.0% | 51.4% | 69.4 min | 0.401 |
+| 80 Mbit/s | satellite | 0.0% | 7.8% | 69.4 min | 0.061 |
+| edge-AI (any rate) | TN / HAPS / satellite | 100.0% (report) | 100% | 68.3 min | 0.769 |
+
+Median achievable rates (unchanged): TN 16.20, HAPS 41.09, satellite 6.20 Mbit/s. Raw endurance is
+69.4 min whenever the stream is infeasible (radio on the whole cycle, capped by the backlog model) and up
+to 71.7 min when it fits (raw → HAPS at 20 Mbit/s); edge-AI is 68.3 min because its 10 W compute exceeds
+the 8 W radio. Raw → HAPS beats edge-AI on processed captures per kJ at 20 Mbit/s (0.807 vs 0.769) and
+40 Mbit/s (0.783 vs 0.769); edge-AI wins everywhere else.
+
 ## Experiment-specific choices
 
 - Exp 1 runs on a torus window (no edge effects) of side clip(√(2000/λ) km, 3, 10), 3 realizations
@@ -674,7 +712,7 @@ passes, so the full-run check is the one that reports the decrease.
 See `results/run_log.txt` and `results/metrics.json`. The summary of the latest run is in
 the section below.
 
-### Latest run (v1.2; seeds 1–5, seed mean)
+### Latest run (v1.3; seeds 1–5, seed mean)
 
 | Metric | Value |
 |---|---|
@@ -692,8 +730,8 @@ the section below.
 | Exp 2c via drone (sensor → drone → TN/HAPS/sat), mean over 0–10 km at 2 / 10 / 50 drones/km² | 0.006 / 0.005 / 0.000; drones add ≤ +0.001 on top of the hybrid; no-HAPS + drones is 0.11–0.37 below the hybrid |
 | Exp 2c reuse sensitivity: via drone, mean over 0–10 km, K = 1 / 4 / 8 / 16 random at 10 drones/km² | ≈ 0.005 / 0.06 / 0.14 / 0.27; via latency median 230 / 768 / 1400 / 2533 ms |
 | Exp 4 coop completion at 1000 / 2000 GFLOP | 98.2% / 91.0% (solo: step at 470 GFLOP) |
-| Exp 5 raw streaming | needs 80 Mbit/s; feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS) |
-| Exp 5 median endurance | raw 69.4 min, edge-AI 68.3 min (ceiling 74.0 min) |
+| Exp 5 raw streaming (4K, 60 Mbit/s) | feasible for 0.0% (TN), 0.3% (HAPS), 0.0% (sat) of drones; share of raw delivered 26.9% / 68.5% / 10.4% |
+| Exp 5 median endurance | raw 69.4 min on every tier at 60 Mbit/s, edge-AI 68.3 min (ceiling 74.0 min); processed captures/kJ raw 0.211 / 0.535 / 0.081 vs edge-AI 0.769 |
 
 ### Known sanity-check failures (not fixed, reported as found)
 
@@ -707,7 +745,7 @@ the section below.
   Monte Carlo noise at low density (only 15 realizations per density). A 60-realization re-check
   showed the step increasing.
 
-## Claims (v1.2)
+## Claims (v1.3)
 
 | Claim | Verdict | Numbers |
 |---|---|---|
@@ -716,7 +754,7 @@ the section below.
 | (c) HAPS is needed for latency/throughput | holds at nominal bandwidths; a bandwidth effect | all-HAPS 19.1→25.9 ms vs TN 38.4→93.2 ms and satellite 92.6→101.5 ms; HAPS median 41.09 Mbit/s vs TN 16.20, sat 6.20 |
 | (d) coordination prevents congestion collapse | does not hold as stated; coordination reduces latency when HAPS is congested | no collapse in any case (worst: all-TN 9.4% outage at N=50, HAPS RA 16 + high IoT load). HAPS RA 16, drone-only: load-aware 43.1 ms at N=50 vs all-HAPS 56.4 ms (terrestrial-first 43.0 ms). HAPS RA 16 + high IoT load: load-aware 2.8% outage, 137.4 ms (conservative 2.3%, 138.1 ms) vs best single tier (satellite) 2.9%, 181.1 ms; terrestrial-first 3.4%, 161.6 ms |
 | (e) cooperation beats solo | holds | 91.0% vs 0% completion at 2000 GFLOP |
-| (f) edge-AI is needed for data delivery | holds (if the 0.02 Mbit report carries the needed information) | raw feasible for 0.0% of drones on every tier; ≤ 51.4% of raw delivered (HAPS); report feasible 100% |
-| (g) edge-AI saves energy | does not hold | endurance edge-AI 68.3 min vs raw 69.4 min |
+| (f) edge-AI is needed for data delivery | holds for TN and satellite at every raw bitrate 20–80 Mbit/s, and for HAPS at 60–80 Mbit/s; does not hold for HAPS at 20 Mbit/s and barely at 40 Mbit/s (if the 0.02 Mbit report carries the needed information) | raw feasible: TN 12.8% at 20 Mbit/s, 0.0% from 40; satellite 0.0% at every rate; HAPS 100.0% / 56.2% / 0.3% / 0.0% at 20 / 40 / 60 / 80 Mbit/s (share of raw delivered 100.0% / 94.6% / 68.5% / 51.4%). At the nominal 4K H.264 60 Mbit/s raw delivers 26.9% (TN), 68.5% (HAPS), 10.4% (sat); the edge-AI report is delivered for 100% on every tier |
+| (g) edge-AI saves energy | does not hold for any tier or raw bitrate | endurance edge-AI 68.3 min vs raw 69.4 min (TN, sat, every rate; HAPS at 60–80 Mbit/s) and 69.5 / 71.7 min (HAPS at 40 / 20 Mbit/s). On processed captures per kJ edge-AI (0.769) wins for TN and satellite at every rate and for HAPS at 60–80 Mbit/s (0.535 / 0.401), but loses to raw → HAPS at 20 and 40 Mbit/s (0.807 / 0.783) |
 | (h) HAPS is needed for coverage of ground IoT sensors | holds at +5 and 0 dB; small margin at −5 dB | +5 dB, hybrid vs TN + sat: 0.950 vs 0.746 at the hub, 0.971 vs 0.853 at 2 km, 0.908 vs 0.540 at 5 km, 0.877 vs 0.538 at 10 km (σ_b = 3°: 0.744 at 10 km). 10 km at 0 dB: 0.996 vs 0.857; −5 dB: 1.000 vs 0.987 |
 | (i) drones as aerial IoT gateways extend sensor coverage or replace the HAPS | does not hold; orthogonal reuse helps the drone hop but not enough | K = 1 (shared 1 MHz): via-drone ≤ 0.010, +0.000–0.001 on top of the hybrid. With K = 16 orthogonal sub-channels via-drone coverage rises to 0.20–0.38 (median hop SINR −0.2 to −0.5 dB) but adds at most +0.057 on top of the hybrid, and no-HAPS + drones stays 0.068–0.369 below the hybrid at every K and density (K = 16, 10 drones/km², 10 km: −0.195). Nearest-neighbour colouring adds +0.000 to +0.024 over random reuse (mean over 0–10 km). Via-drone latency 224–249 ms (K = 1) to 2.3–2.9 s (K = 16) vs ≈ 39 ms direct. More drones lower via-drone coverage at every K |

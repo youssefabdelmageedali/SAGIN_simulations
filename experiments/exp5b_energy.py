@@ -9,6 +9,8 @@ from experiments.common import COLORS, FIGSIZE, band, make_rng, save, spread
 T_MIN = np.linspace(0, 80, 801)
 TIERS = ["tn", "haps", "sat"]
 TIER_LABEL = {"tn": "TN", "haps": "HAPS", "sat": "satellite"}
+RAW_RATES_MBPS = [20.0, 40.0, 60.0, 80.0]  # raw video bitrate sweep; 40 = H.265 4K, 60 = H.264 4K (Matrice 4E)
+SWEEP_METRICS = ["feasible_share", "delivered_share", "endurance_min", "captures_per_kj"]
 # strategy -> (payload field, tier, on-board compute)
 STRATEGIES = {f"{mode}_{t}": ("raw_mbit" if mode == "raw" else "report_mbit", t, mode == "edge")
               for mode in ("raw", "edge") for t in TIERS}
@@ -38,6 +40,7 @@ def run(world, seeds, outdir, quick=False, log=print):
     feas_rep = {k: [] for k in TIERS}
     delivered = {k: [] for k in TIERS}
     backlog = {k: [] for k in TIERS}
+    sweep = {(r, k): {m: [] for m in SWEEP_METRICS} for r in RAW_RATES_MBPS for k in TIERS}
     for seed in seeds:
         rng = make_rng(seed, 5)
         sinr = {k: np.zeros(n_drones) for k in TIERS}
@@ -63,6 +66,17 @@ def run(world, seeds, outdir, quick=False, log=print):
             life[k].append(np.median(world.endurance_s(e)) / 60)
             bits_per_j[k].append(np.median(got * 1e6 / e))
             captures_per_kj[k].append(np.median(got / pay / e * 1e3))  # one capture's information per cycle at most
+        # raw-rate sweep: same drones and achievable rates, raw payload = bitrate x capture interval
+        for r in RAW_RATES_MBPS:
+            pay = r * p.capture_interval_s
+            for k in TIERS:
+                e = world.cycle_energy_j(pay, rate[k], False)
+                got = world.delivered_mbit_per_cycle(pay, rate[k])
+                sw = sweep[(r, k)]
+                sw["feasible_share"].append(np.mean(rate[k] >= world.required_rate_bps(pay)))
+                sw["delivered_share"].append(np.mean(got / pay))
+                sw["endurance_min"].append(np.median(world.endurance_s(e)) / 60)
+                sw["captures_per_kj"].append(np.median(got / pay / e * 1e3))
 
     ceiling_min = world.flight_ceiling_s() / 60
     ceiling = np.clip(100 * (1 - T_MIN / ceiling_min), 0, 100)
@@ -80,6 +94,17 @@ def run(world, seeds, outdir, quick=False, log=print):
             f"(seed range {min(life[k]):.1f}..{max(life[k]):.1f}); delivered {np.mean(bits_per_j[k]):.1f} bit/J; "
             f"{np.mean(captures_per_kj[k]):.3f} captures/kJ")
     log(f"flight-only ceiling {ceiling_min:.1f} min")
+    log("raw bitrate sweep (raw payload = bitrate x 10 s; mean over seeds): feasible share / share of raw data "
+        "delivered / median endurance / median processed captures per kJ")
+    for r in RAW_RATES_MBPS:
+        for k in TIERS:
+            sw = sweep[(r, k)]
+            log(f"  {r:4g} Mbit/s raw -> {TIER_LABEL[k]:9s}: {100 * np.mean(sw['feasible_share']):5.1f}% / "
+                f"{100 * np.mean(sw['delivered_share']):5.1f}% / {np.mean(sw['endurance_min']):.1f} min / "
+                f"{np.mean(sw['captures_per_kj']):.3f}")
+    for k in TIERS:
+        log(f"  edge-AI -> {TIER_LABEL[k]:9s}: report feasible {100 * np.mean(feas_rep[k]):.1f}% / "
+            f"{np.mean(life[f'edge_{k}']):.1f} min / {np.mean(captures_per_kj[f'edge_{k}']):.3f} captures/kJ")
     for k, v in checks.items():
         log(f"check {k}: {v}")
     assert checks["below_flight_ceiling"], "a battery curve exceeds the flight-only ceiling"
@@ -119,7 +144,26 @@ def run(world, seeds, outdir, quick=False, log=print):
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False)
     save(fig, f"{outdir}/fig5d_bits_per_joule.png")
 
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    for k, ls in zip(TIERS, ["-", "--", ":"]):
+        ys = np.array([sweep[(r, k)]["captures_per_kj"] for r in RAW_RATES_MBPS]).T
+        band(ax, RAW_RATES_MBPS, ys, COLORS[k], f"raw → {TIER_LABEL[k]}", linestyle=ls, marker="o")
+    edge = np.array([captures_per_kj[f"edge_{k}"] for k in TIERS]).mean(0)
+    ax.axhline(edge.mean(), color=COLORS["drone"], linewidth=1.3,
+               label=f"edge-AI, any tier ({edge.mean():.3f}/kJ)")
+    for r, txt in [(40, "H.265 4K"), (60, "H.264 4K")]:
+        ax.axvline(r, color=COLORS["ref"], linewidth=0.6, linestyle="--")
+        ax.text(r, 0.02, f" {txt}", rotation=90, fontsize=6, va="bottom", transform=ax.get_xaxis_transform())
+    ax.set_xlabel("raw video bitrate (Mbit/s)")
+    ax.set_ylabel("processed captures per kJ")
+    ax.set_xticks(RAW_RATES_MBPS)
+    ax.set_ylim(bottom=0)
+    ax.legend(loc="upper right", fontsize=6)
+    save(fig, f"{outdir}/fig5e_captures_per_kj_vs_raw_rate.png")
+
     return {
+        "raw_rate_sweep": {f"{r:g}Mbps": {k: {m: spread(sweep[(r, k)][m]) for m in SWEEP_METRICS} for k in TIERS}
+                           for r in RAW_RATES_MBPS},
         **{f"{k}_endurance_min": spread(v) for k, v in life.items()},
         **{f"{k}_delivered_bits_per_joule": spread(v) for k, v in bits_per_j.items()},
         **{f"{k}_captures_per_kj": spread(v) for k, v in captures_per_kj.items()},
