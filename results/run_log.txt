@@ -1,11 +1,11 @@
-===== exp1 (fig2) 61s
+===== exp1 (fig2) 62s
 SG-derived degree peaks at density 4/km^2, value 8.762 (seed peaks 8.604..9.061 at [2, 1, 4, 2, 4])
 SG-derived degree at 250/km^2: 6.061 (30.8% below peak)
 Naive rule r0 = 179.0 m (seed range 164.1..193.4); naive degree 5.481 -> 31.229
 check sg_peaks_before_max_density: True
 check naive_monotone_non_decreasing: False
 
-===== exp2 (fig3) 109s
+===== exp2 (fig3) 127s
 drones: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
   tn           : 1.000 / 1.000 / 1.000 / 0.996 / 0.950 / 0.971   (mean over 0-10 km 0.976)
   haps_ideal   : 1.000 / 1.000 / 1.000 / 1.000 / 1.000 / 0.998   (mean over 0-10 km 1.000)
@@ -45,7 +45,7 @@ drone antenna-gain sweep (Tx 30 dBm), coverage at 10 km:
      3 dBi: sat 0.913, no_haps 0.987, hybrid_ideal 1.000, haps_ideal 0.997, tn 0.832
     10 dBi: sat 0.998, no_haps 1.000, hybrid_ideal 1.000, haps_ideal 0.998, tn 0.971
 
-===== exp2b (fig3panelb) 12s
+===== exp2b (fig3panelb) 14s
 ground IoT sensor terminal: height 0 m, Tx 23 dBm, antenna gain 0 dBi (all other parameters as exp2)
 ground IoT sensors: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
   tn           : 0.697 / 0.735 / 0.819 / 0.734 / 0.442 / 0.443   (mean over 0-10 km 0.553)
@@ -82,7 +82,7 @@ ground IoT sensors: coverage at 0 / 1 / 2 / 3 / 5 / 10 km (seed mean)
     hybrid_err    full load: 0.743 / 0.771 / 0.838 / 0.802 / 0.773 / 0.739
     no_haps       full load: 0.459 / 0.518 / 0.661 / 0.583 / 0.531 / 0.531
 
-===== exp2c (fig3c) 929s
+===== exp2c (fig3c) 985s
 via-drone coverage vs density (mean over 0-10 km, pooled over seeds): 2/km^2 0.0059 (SE 0.0003), 10/km^2 0.0046 (SE 0.0003), 50/km^2 0.0005 (SE 0.0001); steps: -0.0013 (flat (within 3 SE)), -0.0041 (decreasing)
 sensor -> nearest drone (TR 36.777 UMa-AV in the core, RMa-AV outside; 1 MHz; co-channel activity 0.393); backhaul with the drone radio (30 dBm, 10 dBi)
 drone density low (2/km^2): coverage at 0 / 2 / 5 / 10 km
@@ -140,7 +140,7 @@ orthogonal reuse of the 1 MHz sensor -> drone band (K sub-channels of 1000/K kHz
 check combined_ge_components: True
 check via_drone_non_decreasing_in_density: False
 
-===== exp3 (fig4) 111s
+===== exp3 (fig4) 123s
 drone-only random access (no IoT preambles), co-channel activity 0.393, nominal bandwidths and threshold:
   all_tn   : 38.4 -> 93.2 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
   all_haps : 19.1 -> 25.9 ms (N=1..50), outage mean 0.0% (no_coverage 0.0%, ra_failure 0.0%, over_limit 0.0%), at N=50 0.0%
@@ -296,16 +296,32 @@ check solo_exact_step: True
 check coop_ge_solo: True
 
 ===== exp5 (fig5b) 3s
-raw streaming needs 80.0 Mbit/s (800 Mbit every 10 s); edge-AI report needs 2.0 kbit/s
-  TN        achievable rate median 16.20 Mbit/s (95th pct 21.74); raw feasible for 0.0% of drones; median fraction of raw delivered 20.2%; median backlog after 80 min 306.3 Gbit; report feasible for 100.0%
-  HAPS      achievable rate median 41.09 Mbit/s (95th pct 52.13); raw feasible for 0.0% of drones; median fraction of raw delivered 51.4%; median backlog after 80 min 186.8 Gbit; report feasible for 100.0%
-  satellite achievable rate median 6.20 Mbit/s (95th pct 8.67); raw feasible for 0.0% of drones; median fraction of raw delivered 7.7%; median backlog after 80 min 354.2 Gbit; report feasible for 100.0%
-raw → TN             median endurance 69.4 min (seed range 69.4..69.4); delivered 126533.1 bit/J; 0.158 captures/kJ
-raw → HAPS           median endurance 69.4 min (seed range 69.4..69.4); delivered 321032.7 bit/J; 0.401 captures/kJ
-raw → satellite      median endurance 69.4 min (seed range 69.4..69.4); delivered 48423.0 bit/J; 0.061 captures/kJ
+raw streaming needs 60.0 Mbit/s (600 Mbit every 10 s); edge-AI report needs 2.0 kbit/s
+  TN        achievable rate median 16.20 Mbit/s (95th pct 21.74); raw feasible for 0.0% of drones; median fraction of raw delivered 27.0%; median backlog after 80 min 210.3 Gbit; report feasible for 100.0%
+  HAPS      achievable rate median 41.09 Mbit/s (95th pct 52.13); raw feasible for 0.3% of drones; median fraction of raw delivered 68.5%; median backlog after 80 min 90.8 Gbit; report feasible for 100.0%
+  satellite achievable rate median 6.20 Mbit/s (95th pct 8.67); raw feasible for 0.0% of drones; median fraction of raw delivered 10.3%; median backlog after 80 min 258.2 Gbit; report feasible for 100.0%
+raw → TN             median endurance 69.4 min (seed range 69.4..69.4); delivered 126533.1 bit/J; 0.211 captures/kJ
+raw → HAPS           median endurance 69.4 min (seed range 69.4..69.4); delivered 321032.7 bit/J; 0.535 captures/kJ
+raw → satellite      median endurance 69.4 min (seed range 69.4..69.4); delivered 48423.0 bit/J; 0.081 captures/kJ
 edge-AI → TN         median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
 edge-AI → HAPS       median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
 edge-AI → satellite  median endurance 68.3 min (seed range 68.3..68.3); delivered 15.4 bit/J; 0.769 captures/kJ
 flight-only ceiling 74.0 min
+raw bitrate sweep (raw payload = bitrate x 10 s; mean over seeds): feasible share / share of raw data delivered / median endurance / median processed captures per kJ
+    20 Mbit/s raw -> TN       :  12.8% /  79.7% / 69.4 min / 0.633
+    20 Mbit/s raw -> HAPS     : 100.0% / 100.0% / 71.7 min / 0.807
+    20 Mbit/s raw -> satellite:   0.0% /  31.1% / 69.4 min / 0.242
+    40 Mbit/s raw -> TN       :   0.0% /  40.4% / 69.4 min / 0.316
+    40 Mbit/s raw -> HAPS     :  56.2% /  94.6% / 69.5 min / 0.783
+    40 Mbit/s raw -> satellite:   0.0% /  15.5% / 69.4 min / 0.121
+    60 Mbit/s raw -> TN       :   0.0% /  26.9% / 69.4 min / 0.211
+    60 Mbit/s raw -> HAPS     :   0.3% /  68.5% / 69.4 min / 0.535
+    60 Mbit/s raw -> satellite:   0.0% /  10.4% / 69.4 min / 0.081
+    80 Mbit/s raw -> TN       :   0.0% /  20.2% / 69.4 min / 0.158
+    80 Mbit/s raw -> HAPS     :   0.0% /  51.4% / 69.4 min / 0.401
+    80 Mbit/s raw -> satellite:   0.0% /   7.8% / 69.4 min / 0.061
+  edge-AI -> TN       : report feasible 100.0% / 68.3 min / 0.769 captures/kJ
+  edge-AI -> HAPS     : report feasible 100.0% / 68.3 min / 0.769 captures/kJ
+  edge-AI -> satellite: report feasible 100.0% / 68.3 min / 0.769 captures/kJ
 check below_flight_ceiling: True
 

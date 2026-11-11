@@ -158,7 +158,7 @@ def run(world, seeds, outdir, quick=False, log=print):
     ax.set_ylabel("processed captures per kJ")
     ax.set_xticks(RAW_RATES_MBPS)
     ax.set_ylim(bottom=0)
-    ax.legend(loc="upper right", fontsize=6)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncol=2, frameon=False, fontsize=6)
     save(fig, f"{outdir}/fig5e_captures_per_kj_vs_raw_rate.png")
 
     return {
